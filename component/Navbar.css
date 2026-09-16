@@ -1,0 +1,299 @@
+
+.navbar {
+  width: 100%;
+  height: 74px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 7%;
+
+  background: rgba(255, 255, 255, 0.92);
+
+  border-bottom: 1px solid #e5e7eb;
+
+  position: sticky;
+  top: 0;
+  z-index: 999;
+
+  backdrop-filter: blur(14px);
+}
+
+
+/* ================================
+   LOGO
+================================ */
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  text-decoration: none;
+
+  color: #111827;
+
+  font-size: 22px;
+  font-weight: 800;
+
+  letter-spacing: -0.5px;
+
+  transition: transform 0.25s ease;
+}
+
+.navbar-logo:hover {
+  transform: translateY(-1px);
+}
+
+
+.logo-box {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #111827;
+  color: #ffffff;
+
+  border-radius: 11px;
+
+  font-size: 18px;
+  font-weight: 800;
+
+  box-shadow: 0 5px 15px rgba(17, 24, 39, 0.18);
+
+  transition: all 0.25s ease;
+}
+
+.navbar-logo:hover .logo-box {
+  transform: rotate(-5deg) scale(1.05);
+}
+
+
+/* ================================
+   NAVIGATION MENU
+================================ */
+
+.navbar-menu {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+}
+
+
+.nav-link {
+  position: relative;
+
+  text-decoration: none;
+
+  color: #64748b;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  padding: 27px 0;
+
+  transition:
+    color 0.25s ease,
+    transform 0.25s ease;
+}
+
+
+/* Hover */
+
+.nav-link:hover {
+  color: #111827;
+  transform: translateY(-1px);
+}
+
+
+/* Animated underline */
+
+.nav-link::after {
+  content: "";
+
+  position: absolute;
+
+  left: 50%;
+  bottom: 18px;
+
+  width: 0;
+  height: 2px;
+
+  background: #111827;
+
+  border-radius: 10px;
+
+  transform: translateX(-50%);
+
+  transition: width 0.25s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+
+/* ================================
+   RIGHT SIDE
+================================ */
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* Login */
+
+.login-button {
+  text-decoration: none;
+
+  color: #111827;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  padding: 10px 17px;
+
+  border-radius: 8px;
+
+  transition: all 0.25s ease;
+}
+
+.login-button:hover {
+  background: #f1f5f9;
+
+  transform: translateY(-1px);
+}
+
+
+/* ================================
+   GET STARTED BUTTON
+================================ */
+
+.get-started {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  text-decoration: none;
+
+  background: #111827;
+  color: #ffffff;
+
+  padding: 11px 18px;
+
+  border-radius: 9px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  box-shadow: 0 5px 15px rgba(17, 24, 39, 0.15);
+
+  transition: all 0.25s ease;
+}
+
+
+/* Button Hover */
+
+.get-started:hover {
+  background: #374151;
+
+  transform: translateY(-2px);
+
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.22);
+}
+
+
+/* Arrow animation */
+
+.get-started span {
+  transition: transform 0.25s ease;
+}
+
+.get-started:hover span {
+  transform: translateX(4px);
+}
+
+
+/* ================================
+   TABLET
+================================ */
+
+@media (max-width: 900px) {
+
+  .navbar {
+    padding: 0 5%;
+  }
+
+  .navbar-menu {
+    gap: 20px;
+  }
+
+  .nav-link {
+    font-size: 13px;
+  }
+
+}
+
+
+/* ================================
+   MOBILE
+================================ */
+
+@media (max-width: 700px) {
+
+  .navbar {
+    height: 68px;
+
+    padding: 0 5%;
+  }
+
+  .navbar-menu {
+    display: none;
+  }
+
+  .navbar-logo {
+    font-size: 20px;
+  }
+
+  .logo-box {
+    width: 36px;
+    height: 36px;
+
+    font-size: 16px;
+  }
+
+  .login-button {
+    display: none;
+  }
+
+  .get-started {
+    padding: 9px 14px;
+
+    font-size: 13px;
+  }
+
+}
+
+
+/* ================================
+   SMALL MOBILE
+================================ */
+
+@media (max-width: 400px) {
+
+  .navbar-logo span {
+    display: none;
+  }
+
+  .get-started {
+    padding: 8px 12px;
+  }
+
+}

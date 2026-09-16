@@ -1,69 +1,327 @@
-import Image from "next/image";
-
+import Link from "next/link";
+import Navbar from "@/component/Navbar";
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <>
+      <Navbar />
+
+      <main className="callai-home">
+
+        {/* Hero Section */}
+        <section className="hero">
+
+          <div className="hero-content">
+
+            <div className="badge">
+              🤖 AI Voice Calling for Businesses
+            </div>
+
+            <h1>
+              Your AI Agent.
+              <br />
+              <span>Making Calls For You.</span>
+            </h1>
+
+            <p>
+              CallAI automatically calls your leads, talks naturally,
+              answers questions, qualifies customers and schedules
+              follow-ups — 24/7.
+            </p>
+
+            <div className="hero-buttons">
+
+              <Link href="/register" className="primary-btn">
+                Start Free
+              </Link>
+
+              <Link href="/dashboard" className="secondary-btn">
+                View Dashboard →
+              </Link>
+
+            </div>
+
+            <div className="trust">
+              <span>✓ No coding required</span>
+              <span>✓ AI-powered conversations</span>
+              <span>✓ Hindi + English + Hinglish</span>
+            </div>
+
+          </div>
+
+
+          {/* Hero Dashboard Preview */}
+          <div className="hero-card">
+
+            <div className="card-header">
+
+              <div>
+                <small>AI AGENT</small>
+                <h3>Admissions Assistant</h3>
+              </div>
+
+              <div className="online">
+                ● Online
+              </div>
+
+            </div>
+
+
+            <div className="call-box">
+
+              <div className="call-avatar">
+                AI
+              </div>
+
+              <div>
+                <strong>Calling Lead...</strong>
+                <p>+91 98765 43210</p>
+              </div>
+
+            </div>
+
+
+            <div className="conversation">
+
+              <div className="message ai-message">
+                Hello! I'm calling from ABC Institute.
+                Are you interested in our courses?
+              </div>
+
+              <div className="message user-message">
+                Yes, I want to know about the fees.
+              </div>
+
+              <div className="message ai-message">
+                Sure! I can help you with that.
+              </div>
+
+            </div>
+
+
+            <div className="call-status">
+              <span>●</span>
+              Call in progress
+              <strong>02:34</strong>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* Stats */}
+        <section className="stats">
+
+          <div>
+            <h2>10K+</h2>
+            <p>Calls Automated</p>
+          </div>
+
+          <div>
+            <h2>24/7</h2>
+            <p>AI Availability</p>
+          </div>
+
+          <div>
+            <h2>3+</h2>
+            <p>Languages</p>
+          </div>
+
+          <div>
+            <h2>80%</h2>
+            <p>Less Manual Work</p>
+          </div>
+
+        </section>
+
+
+        {/* Features */}
+        <section id="features" className="features">
+
+          <div className="section-heading">
+
+            <span>FEATURES</span>
+
+            <h2>
+              Everything you need to
+              <br />
+              automate your calls.
+            </h2>
+
+            <p>
+              Let AI handle repetitive conversations while your team
+              focuses on customers who are ready to buy.
+            </p>
+
+          </div>
+
+
+          <div className="feature-grid">
+
+            <div className="feature-card">
+              <div className="feature-icon">📞</div>
+
+              <h3>AI Voice Calls</h3>
+
+              <p>
+                Automatically call your leads and have natural
+                conversations with them.
+              </p>
+            </div>
+
+
+            <div className="feature-card">
+              <div className="feature-icon">🧠</div>
+
+              <h3>Business Knowledge</h3>
+
+              <p>
+                Train your AI agent using your business information,
+                FAQs and documents.
+              </p>
+            </div>
+
+
+            <div className="feature-card">
+              <div className="feature-icon">🎯</div>
+
+              <h3>Lead Qualification</h3>
+
+              <p>
+                Automatically identify interested, follow-up and
+                not-interested leads.
+              </p>
+            </div>
+
+
+            <div className="feature-card">
+              <div className="feature-icon">📊</div>
+
+              <h3>Analytics</h3>
+
+              <p>
+                Track calls, conversations, leads and AI performance
+                from one dashboard.
+              </p>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* How It Works */}
+        <section id="how-it-works" className="how-section">
+
+          <div className="section-heading">
+
+            <span>HOW IT WORKS</span>
+
+            <h2>
+              From lead to conversation
+              <br />
+              in three simple steps.
+            </h2>
+
+          </div>
+
+
+          <div className="steps">
+
+            <div className="step">
+
+              <div className="step-number">
+                01
+              </div>
+
+              <h3>Upload Leads</h3>
+
+              <p>
+                Upload your leads using CSV or add them manually.
+              </p>
+
+            </div>
+
+
+            <div className="step">
+
+              <div className="step-number">
+                02
+              </div>
+
+              <h3>AI Makes Calls</h3>
+
+              <p>
+                Your AI agent calls leads and talks naturally.
+              </p>
+
+            </div>
+
+
+            <div className="step">
+
+              <div className="step-number">
+                03
+              </div>
+
+              <h3>Get Results</h3>
+
+              <p>
+                See transcripts, summaries, lead status and follow-ups.
+              </p>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* CTA */}
+        <section className="cta">
+
+          <h2>
+            Start automating your
+            <br />
+            business calls today.
+          </h2>
+
+          <p>
+            Let CallAI handle your repetitive calls while you focus
+            on growing your business.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+          <Link href="/register" className="primary-btn">
+            Create Your Account →
+          </Link>
+
+        </section>
+
+
+        {/* Footer */}
+        <footer>
+
+          <div className="footer-logo">
+
+            <div className="logo-icon">
+              C
+            </div>
+
+            <strong>CallAI</strong>
+
+          </div>
+
+          <p>
+            AI-powered voice calling for modern businesses.
+          </p>
+
+          <span>
+            © 2026 CallAI. All rights reserved.
+          </span>
+
+        </footer>
+
       </main>
-    </div>
+    </>
   );
 }
