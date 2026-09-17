@@ -1,0 +1,617 @@
+.saas-dashboard {
+  --saas-bg: #f7f8fa;
+  --saas-card: #ffffff;
+  --saas-text: #111827;
+  --saas-muted: #6b7280;
+  --saas-border: #e5e7eb;
+  --saas-accent: #2563eb;
+  --saas-accent-soft: #eff6ff;
+  --saas-shadow: 0 1px 2px rgba(16, 24, 40, 0.04),
+    0 1px 3px rgba(16, 24, 40, 0.06);
+  --saas-radius: 12px;
+  --saas-space: 8px;
+  max-width: 1200px;
+}
+
+.saas-dash-header h1 {
+  margin: 0 0 var(--saas-space);
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: var(--saas-text);
+  font-weight: 700;
+}
+
+.saas-dash-header p {
+  margin: 0 0 calc(var(--saas-space) * 3.5);
+  color: var(--saas-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  max-width: 36rem;
+}
+
+.saas-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: calc(var(--saas-space) * 2);
+  margin-bottom: calc(var(--saas-space) * 3);
+}
+
+.saas-stats-grid > :nth-child(5),
+.saas-stats-grid > :nth-child(6),
+.saas-stats-grid > :nth-child(7) {
+  grid-column: span 1;
+}
+
+/* 7 cards: 4 on first row, 3 on second centered-ish via equal columns */
+@media (min-width: 1100px) {
+  .saas-stats-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .saas-stats-grid > * {
+    grid-column: span 3;
+  }
+
+  .saas-stats-grid > :nth-child(5),
+  .saas-stats-grid > :nth-child(6),
+  .saas-stats-grid > :nth-child(7) {
+    grid-column: span 4;
+  }
+}
+
+.saas-stat-card {
+  background: var(--saas-card);
+  border: 1px solid var(--saas-border);
+  border-radius: var(--saas-radius);
+  box-shadow: var(--saas-shadow);
+  padding: calc(var(--saas-space) * 2.5);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.saas-stat-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+}
+
+.saas-stat-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--saas-space);
+  margin-bottom: calc(var(--saas-space) * 1.5);
+}
+
+.saas-stat-card__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--saas-muted);
+  line-height: 1.3;
+}
+
+.saas-stat-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--saas-accent-soft);
+  color: var(--saas-accent);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.saas-stat-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.saas-stat-card__value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--saas-text);
+  line-height: 1.15;
+}
+
+.saas-stat-card__hint {
+  margin: calc(var(--saas-space) * 0.75) 0 0;
+  font-size: 0.75rem;
+  color: var(--saas-muted);
+  line-height: 1.4;
+}
+
+.saas-recent {
+  background: var(--saas-card);
+  border: 1px solid var(--saas-border);
+  border-radius: var(--saas-radius);
+  box-shadow: var(--saas-shadow);
+  padding: calc(var(--saas-space) * 3);
+}
+
+.saas-recent__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(var(--saas-space) * 2);
+  margin-bottom: calc(var(--saas-space) * 2.5);
+}
+
+.saas-recent__head h2 {
+  margin: 0 0 4px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--saas-text);
+}
+
+.saas-recent__head p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--saas-muted);
+}
+
+.saas-call-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--saas-space) * 1.5);
+}
+
+.saas-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.saas-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.saas-table th,
+.saas-table td {
+  text-align: left;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--saas-border);
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+
+.saas-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--saas-muted);
+  background: #fafbfc;
+}
+
+.saas-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.saas-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.saas-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.saas-customer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.saas-customer strong {
+  font-weight: 600;
+  color: var(--saas-text);
+  font-size: 0.9375rem;
+}
+
+.saas-customer span {
+  font-size: 0.8125rem;
+  color: var(--saas-muted);
+}
+
+.saas-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.saas-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.saas-badge--call.is-completed {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.saas-badge--call.is-missed {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.saas-badge--call.is-scheduled {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.saas-badge--call.is-progress {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.saas-badge--lead.is-interested {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.saas-badge--lead.is-new {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+
+.saas-badge--lead.is-followup {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.saas-badge--lead.is-converted {
+  background: #eff6ff;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+
+.saas-badge--lead.is-not-interested {
+  background: #f9fafb;
+  color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+.saas-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--saas-border);
+  background: #fff;
+  color: var(--saas-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.saas-view-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.saas-view-btn:hover {
+  background: var(--saas-accent-soft);
+  border-color: #bfdbfe;
+  color: var(--saas-accent);
+}
+
+.saas-view-btn:focus-visible {
+  outline: 2px solid var(--saas-accent);
+  outline-offset: 2px;
+}
+
+.saas-call-card {
+  border: 1px solid var(--saas-border);
+  border-radius: 10px;
+  padding: calc(var(--saas-space) * 2);
+  background: #fff;
+}
+
+.saas-call-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.saas-call-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.saas-call-card__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: var(--saas-muted);
+}
+
+.saas-empty {
+  padding: calc(var(--saas-space) * 4);
+  text-align: center;
+  color: var(--saas-muted);
+  font-size: 0.9375rem;
+  border: 1px dashed var(--saas-border);
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.saas-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Drawer */
+.saas-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.saas-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(17, 24, 39, 0.4);
+  cursor: pointer;
+  animation: saas-fade-in 0.15s ease;
+}
+
+.saas-drawer {
+  position: relative;
+  width: min(420px, 100%);
+  height: 100%;
+  background: #fff;
+  box-shadow: -8px 0 24px rgba(16, 24, 40, 0.12);
+  display: flex;
+  flex-direction: column;
+  animation: saas-slide-in 0.2s ease;
+}
+
+.saas-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid var(--saas-border);
+}
+
+.saas-drawer__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--saas-muted);
+}
+
+.saas-drawer__header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.saas-drawer__close {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--saas-border);
+  background: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--saas-muted);
+  cursor: pointer;
+}
+
+.saas-drawer__close:hover {
+  background: #f9fafb;
+  color: var(--saas-text);
+}
+
+.saas-drawer__close:focus-visible {
+  outline: 2px solid var(--saas-accent);
+  outline-offset: 2px;
+}
+
+.saas-drawer__body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.saas-drawer__meta {
+  margin: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.saas-drawer__meta div {
+  display: grid;
+  gap: 6px;
+}
+
+.saas-drawer__meta dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--saas-muted);
+}
+
+.saas-drawer__meta dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--saas-text);
+}
+
+.saas-drawer__summary {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--saas-border);
+}
+
+.saas-drawer__summary h3 {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.saas-drawer__summary p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--saas-muted);
+}
+
+.saas-drawer__footer {
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--saas-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.saas-drawer__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--saas-accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex: 1;
+  transition: background-color 0.12s ease;
+}
+
+.saas-drawer__link:hover {
+  background: #1d4ed8;
+}
+
+.saas-drawer__link--secondary {
+  background: #fff;
+  color: var(--saas-text);
+  border: 1px solid var(--saas-border);
+}
+
+.saas-drawer__link--secondary:hover {
+  background: #f9fafb;
+}
+
+.saas-drawer__link:focus-visible {
+  outline: 2px solid var(--saas-accent);
+  outline-offset: 2px;
+}
+
+@keyframes saas-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes saas-slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1099px) {
+  .saas-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .saas-stats-grid > :nth-child(n) {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .saas-dash-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .saas-dash-header p {
+    margin-bottom: calc(var(--saas-space) * 3);
+  }
+
+  .saas-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .saas-stat-card {
+    padding: 16px;
+  }
+
+  .saas-stat-card__value {
+    font-size: 1.5rem;
+  }
+
+  .saas-stat-card__icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .saas-recent {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .saas-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

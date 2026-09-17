@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
+enum AgentLanguage {
+  HINGLISH
+  HINDI
+  ENGLISH
+}
+
+enum LeadStatus {
+  NEW
+  CALLING
+  COMPLETED
+  INTERESTED
+  NOT_INTERESTED
+  FOLLOW_UP
+  NO_RESPONSE
+  CONVERTED
+}
+
+enum CallStatus {
+  QUEUED
+  RINGING
+  IN_PROGRESS
+  ENDED
+  FAILED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum CampaignLeadStatus {
+  PENDING
+  CALLING
+  COMPLETED
+  SKIPPED
+  FAILED
+}
+
+enum FollowUpStatus {
+  PENDING
+  READY
+  QUEUED
+  COMPLETED
+  CANCELLED
+  SKIPPED
+  FAILED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+// --- Core entities ---
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  authProviderId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  businesses Business[]
+}
+
+model Business {
+  id                    String   @id @default(cuid())
+  ownerId               String
+  name                  String
+  description           String?
+  phone                 String?
+  website               String?
+  address               String?
+  timezone              String   @default("Asia/Kolkata")
+  callingEnabled        Boolean  @default(true)
+  followUpCallingEnabled Boolean @default(true)
+  callingWindowStart    String   @default("09:00")
+  callingWindowEnd      String   @default("20:00")
+  /// Comma-separated ISO weekdays: 1=Mon … 7=Sun
+  callingDays           String   @default("1,2,3,4,5,6")
+  maxFollowUpAttempts   Int      @default(3)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  owner              User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  knowledge          BusinessKnowledge[]
+  agents             Agent[]
+  leads              Lead[]
+  calls              Call[]
+  appointments       Appointment[]
+  campaigns          Campaign[]
+  subscriptions      Subscription[]
+  followUps          FollowUp[]
+
+  @@index([ownerId])
+}
+
+model BusinessKnowledge {
+  id         String   @id @default(cuid())
+  businessId String
+  category   String
+  title      String
+  content    String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([businessId, category])
+  @@index([businessId, active])
+}
+
+model Agent {
+  id           String        @id @default(cuid())
+  businessId   String
+  name         String
+  language     AgentLanguage @default(HINGLISH)
+  voice        String?
+  systemPrompt String?
+  objective    String?
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  business  Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  calls     Call[]
+  campaigns Campaign[]
+  followUps FollowUp[]
+
+  @@index([businessId])
+  @@index([businessId, active])
+}
+
+model Lead {
+  id               String     @id @default(cuid())
+  businessId       String
+  name             String
+  phone            String
+  email            String?
+  status           LeadStatus @default(NEW)
+  source           String?
+  notes            String?
+  company          String?
+  assignedTo       String?
+  followUpRequired Boolean    @default(false)
+  followUpAt       DateTime?
+  followUpNote     String?
+  followUpReminder Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  calls         Call[]
+  appointments  Appointment[]
+  campaignLeads CampaignLead[]
+  followUps     FollowUp[]
+
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([businessId, phone])
+}
+
+model Call {
+  id               String     @id @default(cuid())
+  businessId       String
+  leadId           String
+  agentId          String
+  provider         String     @default("vapi")
+  providerCallId   String?
+  status           CallStatus @default(QUEUED)
+  duration         Int?
+  recordingUrl     String?
+  transcript       String?
+  summary          String?
+  errorMessage     String?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdAt        DateTime   @default(now())
+  /// Follow-up job that triggered this outbound call (if any)
+  sourceFollowUpId String?
+
+  business Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lead     Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent    Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  result   CallResult?
+  appointments Appointment[]
+  followUpsAsSource FollowUp[] @relation("FollowUpSourceCall")
+  sourceFollowUp    FollowUp?  @relation("FollowUpOutboundCall", fields: [sourceFollowUpId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerCallId])
+  @@index([businessId])
+  @@index([leadId])
+  @@index([agentId])
+  @@index([businessId, status])
+  @@index([sourceFollowUpId])
+}
+
+model CallResult {
+  id               String   @id @default(cuid())
+  callId           String   @unique
+  interest         String?
+  requirement      String?
+  followUpRequired Boolean  @default(false)
+  followUpDate     DateTime?
+  customerSentiment String?
+  summary          String?
+  createdAt        DateTime @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id         String            @id @default(cuid())
+  businessId String
+  leadId     String
+  callId     String?
+  date       DateTime
+  time       String?
+  type       String?
+  status     AppointmentStatus @default(SCHEDULED)
+  notes      String?
+  createdAt  DateTime          @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  call     Call?    @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([leadId])
+  @@index([callId])
+  @@index([businessId, date])
+}
+
+model Campaign {
+  id         String         @id @default(cuid())
+  businessId String
+  agentId    String
+  name       String
+  status     CampaignStatus @default(DRAFT)
+  startTime  DateTime?
+  endTime    DateTime?
+  createdAt  DateTime       @default(now())
+
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  agent    Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  leads    CampaignLead[]
+
+  @@index([businessId])
+  @@index([agentId])
+  @@index([businessId, status])
+}
+
+model CampaignLead {
+  id            String             @id @default(cuid())
+  campaignId    String
+  leadId        String
+  status        CampaignLeadStatus @default(PENDING)
+  attempts      Int                @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, leadId])
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([campaignId, status])
+}
+
+model FollowUp {
+  id             String         @id @default(cuid())
+  businessId     String
+  leadId         String
+  agentId        String?
+  /// Call that requested this follow-up
+  callId         String?
+  scheduledAt    DateTime
+  status         FollowUpStatus @default(PENDING)
+  reason         String?
+  skipReason     String?
+  attempts       Int            @default(0)
+  lastAttemptAt  DateTime?
+  nextAttemptAt  DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent    Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  sourceCall Call?  @relation("FollowUpSourceCall", fields: [callId], references: [id], onDelete: SetNull)
+  outboundCalls Call[] @relation("FollowUpOutboundCall")
+
+  @@index([businessId, status, scheduledAt])
+  @@index([leadId, status])
+  @@index([scheduledAt, status])
+  @@index([callId])
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  businessId             String
+  plan                   String
+  status                 SubscriptionStatus @default(TRIALING)
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([providerCustomerId])
+}

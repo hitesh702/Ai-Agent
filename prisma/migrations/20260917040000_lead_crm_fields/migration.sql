@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Lead" ADD COLUMN "assignedTo" TEXT;
+ALTER TABLE "Lead" ADD COLUMN "company" TEXT;
+ALTER TABLE "Lead" ADD COLUMN "followUpAt" DATETIME;
+ALTER TABLE "Lead" ADD COLUMN "followUpNote" TEXT;
+ALTER TABLE "Lead" ADD COLUMN "followUpReminder" BOOLEAN NOT NULL DEFAULT false;
