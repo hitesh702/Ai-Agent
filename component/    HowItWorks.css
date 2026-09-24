@@ -1,0 +1,160 @@
+.how-it-works {
+  width: 100%;
+  padding: 100px 20px;
+  background: #f8fafc;
+}
+
+.section-shell {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Heading */
+
+.section-heading {
+  max-width: 700px;
+  margin: 0 auto 60px;
+  text-align: center;
+}
+
+.section-eyebrow {
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #2563eb;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 42px;
+  line-height: 1.15;
+  font-weight: 700;
+  color: #111827;
+}
+
+.section-heading > p:last-child {
+  margin: 20px auto 0;
+  max-width: 620px;
+  font-size: 17px;
+  line-height: 1.7;
+  color: #64748b;
+}
+
+/* Cards */
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.step-card {
+  position: relative;
+  padding: 36px 30px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.step-card:hover {
+  transform: translateY(-8px);
+  border-color: #bfdbfe;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.1);
+}
+
+/* Number */
+
+.step-number {
+  position: absolute;
+  top: 22px;
+  right: 25px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+/* Icon */
+
+.step-icon {
+  width: 58px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 28px;
+
+  border-radius: 16px;
+  background: #eff6ff;
+  color: #2563eb;
+
+  font-size: 26px;
+  font-weight: 700;
+}
+
+/* Title */
+
+.step-card h3 {
+  margin: 0 0 12px;
+  font-size: 21px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Description */
+
+.step-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #64748b;
+}
+
+/* Tablet */
+
+@media (max-width: 900px) {
+  .how-it-works {
+    padding: 80px 20px;
+  }
+
+  .section-heading h2 {
+    font-size: 36px;
+  }
+
+  .steps-grid {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .how-it-works {
+    padding: 70px 16px;
+  }
+
+  .section-heading {
+    margin-bottom: 40px;
+  }
+
+  .section-heading h2 {
+    font-size: 30px;
+  }
+
+  .section-heading > p:last-child {
+    font-size: 15px;
+  }
+
+  .step-card {
+    padding: 30px 24px;
+  }
+}

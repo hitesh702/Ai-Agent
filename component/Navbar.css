@@ -67,7 +67,7 @@
 .site-nav-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 15px;
   flex-shrink: 0;
 }
 
@@ -75,7 +75,7 @@
   font-size: 0.9375rem;
   font-weight: 550;
   color: var(--callai-text);
-  padding: 8px 10px;
+  padding: 12px 10px;
 }
 
 .site-nav-cta {

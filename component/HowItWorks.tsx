@@ -1,3 +1,4 @@
+import "./    HowItWorks.css";
 export default function HowItWorks() {
   const steps = [
     {

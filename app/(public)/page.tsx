@@ -1,5 +1,9 @@
 import Navbar from "@/component/Navbar";
 import HeroSection from "@/component/HeroSection";
+import HowItWorks from "@/component/HowItWorks";
+import IndustriesSection from "@/component/IndustriesSection";
+
+
 import "../landing.css";
 
 export default function Home() {
@@ -8,6 +12,8 @@ export default function Home() {
 
       <main className="landing">
         <HeroSection />
+            <HowItWorks />
+            <IndustriesSection />
       </main>
     </>
   );
