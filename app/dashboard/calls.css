@@ -70,6 +70,32 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+.ai-summary-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 20px;
+  margin: 0 0 16px;
+}
+
+.ai-summary-grid dt {
+  color: var(--callai-muted, #64748b);
+  font-size: 0.875rem;
+}
+
+.ai-summary-grid dd {
+  margin: 0;
+  color: var(--callai-text, #0f172a);
+}
+
+.ai-summary-grid ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.ai-summary-note {
+  color: var(--callai-muted, #64748b);
+}
+
 .knowledge-hint {
   margin: 0 0 8px;
   padding: 12px 14px;

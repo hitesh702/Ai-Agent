@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useId, useState, type ReactNode } from "react";
-import type { CallHistoryItem, LeadRecord } from "./types";
+import type { LeadRecord } from "./types";
 import { CallHistory } from "./CallHistory";
-import { getDemoCallHistory } from "./mappers";
 
 type Props = {
   open: boolean;
@@ -24,11 +23,6 @@ export function CallHistoryDrawer({ open, lead, onClose }: Props) {
   }, [open, onClose]);
 
   if (!open || !lead) return null;
-
-  const items: CallHistoryItem[] =
-    lead.callHistory.length > 0
-      ? lead.callHistory
-      : getDemoCallHistory(lead.name);
 
   return (
     <div className="lm-drawer-root" role="presentation">
@@ -54,10 +48,7 @@ export function CallHistoryDrawer({ open, lead, onClose }: Props) {
           </button>
         </div>
         <div className="lm-drawer__body">
-          <CallHistory
-            items={items}
-            usingDemo={lead.callHistory.length === 0}
-          />
+          <CallHistory items={lead.callHistory} />
         </div>
       </aside>
     </div>

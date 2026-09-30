@@ -1,12 +1,22 @@
 "use server";
 
-import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { ApiError } from "@/lib/api/http";
+import { campaignCreateSchema } from "@/lib/api/schemas";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/workspace";
+import {
+  createCampaign,
+  markCampaignReady,
+  pauseCampaign,
+  resumeCampaign,
+  startCampaign,
+  updateCampaign,
+} from "./lifecycle";
+import type { CampaignTickResult } from "./queue";
 
-export type FormState = { error?: string; success?: boolean };
+export type FormState = { error?: string; success?: boolean; message?: string };
 
 async function requireOwnedBusiness() {
   const session = await requireSession();
@@ -17,92 +27,156 @@ async function requireOwnedBusiness() {
   return business;
 }
 
-const createSchema = z.object({
-  name: z.string().trim().min(2, "Campaign name is required"),
-  agentId: z.string().min(1, "Select an agent"),
-  leadIds: z.array(z.string()).default([]),
-});
+function parseCampaignForm(formData: FormData) {
+  return campaignCreateSchema.safeParse({
+    name: formData.get("name"),
+    agentId: formData.get("agentId"),
+    leadIds: formData.getAll("leadIds").map(String).filter(Boolean),
+    callingDays: formData.getAll("callingDays").map(String),
+    callingWindowStart: formData.get("callingWindowStart"),
+    callingWindowEnd: formData.get("callingWindowEnd"),
+    maxAttempts: formData.get("maxAttempts"),
+    busyRetryMinutes: formData.get("busyRetryMinutes"),
+    retryDelayMinutes: formData.get("retryDelayMinutes"),
+    failedRetryMinutes: formData.get("failedRetryMinutes"),
+    retryOnVoicemail: formData.get("retryOnVoicemail") === "on",
+    createFollowUps: formData.get("createFollowUps") === "on",
+  });
+}
+
+function toFormError(error: unknown): FormState {
+  if (error instanceof ApiError) return { error: error.message };
+  console.error("[campaign] action failed", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+  return { error: "Something went wrong. Please try again." };
+}
+
+function revalidateCampaign(campaignId?: string) {
+  revalidatePath("/dashboard/campaigns");
+  if (campaignId) revalidatePath(`/dashboard/campaigns/${campaignId}`);
+}
 
 export async function createCampaignAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const business = await requireOwnedBusiness();
-  const leadIds = formData.getAll("leadIds").map(String).filter(Boolean);
-
-  const parsed = createSchema.safeParse({
-    name: formData.get("name"),
-    agentId: formData.get("agentId"),
-    leadIds,
-  });
+  const parsed = parseCampaignForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const agent = await prisma.agent.findFirst({
-    where: { id: parsed.data.agentId, businessId: business.id },
-  });
-  if (!agent) return { error: "Agent not found" };
-
-  if (parsed.data.leadIds.length) {
-    const count = await prisma.lead.count({
-      where: { businessId: business.id, id: { in: parsed.data.leadIds } },
-    });
-    if (count !== parsed.data.leadIds.length) {
-      return { error: "One or more leads are invalid" };
-    }
+  let campaignId: string;
+  try {
+    campaignId = (await createCampaign(business.id, parsed.data)).id;
+  } catch (error) {
+    return toFormError(error);
   }
-
-  const campaign = await prisma.campaign.create({
-    data: {
-      businessId: business.id,
-      agentId: parsed.data.agentId,
-      name: parsed.data.name,
-      status: "DRAFT",
-      leads: {
-        create: parsed.data.leadIds.map((leadId) => ({ leadId })),
-      },
-    },
-  });
-
-  revalidatePath("/dashboard/campaigns");
-  redirect(`/dashboard/campaigns/${campaign.id}`);
+  revalidateCampaign();
+  redirect(`/dashboard/campaigns/${campaignId}`);
 }
 
-export async function startCampaignAction(campaignId: string): Promise<FormState> {
+export async function updateCampaignAction(
+  campaignId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const business = await requireOwnedBusiness();
-  const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, businessId: business.id },
-    include: { leads: true },
-  });
-  if (!campaign) return { error: "Campaign not found" };
-  if (campaign.leads.length === 0) {
-    return { error: "Add at least one lead before starting" };
+  const parsed = parseCampaignForm(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
-
-  await prisma.campaign.update({
-    where: { id: campaign.id },
-    data: { status: "ACTIVE", startTime: campaign.startTime ?? new Date() },
-  });
-
-  revalidatePath(`/dashboard/campaigns/${campaignId}`);
-  revalidatePath("/dashboard/campaigns");
+  try {
+    await updateCampaign(business.id, campaignId, parsed.data);
+  } catch (error) {
+    return toFormError(error);
+  }
+  revalidateCampaign(campaignId);
   return { success: true };
+}
+
+export async function markCampaignReadyAction(campaignId: string): Promise<FormState> {
+  const business = await requireOwnedBusiness();
+  try {
+    await markCampaignReady(business.id, campaignId);
+  } catch (error) {
+    return toFormError(error);
+  }
+  revalidateCampaign(campaignId);
+  return {
+    success: true,
+    message: "Campaign is ready. No calls have started. Click Start Campaign when you want to begin.",
+  };
+}
+
+function describeActivation(
+  verb: "started" | "resumed",
+  result: { campaign: { failureReason: string | null }; tick: CampaignTickResult | null },
+): FormState {
+  const tick = result.tick;
+  if (tick?.state === "failed") {
+    return { error: `Campaign stopped: ${result.campaign.failureReason ?? "unknown error"}` };
+  }
+  if (tick?.state === "completed") {
+    return { success: true, message: "No leads are left to call, so the campaign is completed." };
+  }
+  if (tick?.state === "outside_schedule") {
+    return {
+      success: true,
+      message: `Campaign ${verb}. It is outside the calling schedule now, so calls will begin in the next allowed window.`,
+    };
+  }
+  if (tick?.state === "calling_disabled") {
+    return {
+      success: true,
+      message: `Campaign ${verb}, but calling is turned off for this business in Settings.`,
+    };
+  }
+  const started = tick?.started ?? 0;
+  return {
+    success: true,
+    message: `Campaign ${verb}. ${started} call${started === 1 ? "" : "s"} placed; more start as calls finish.`,
+  };
+}
+
+export async function startCampaignAction(
+  campaignId: string,
+  confirmed: boolean,
+): Promise<FormState> {
+  const business = await requireOwnedBusiness();
+  let state: FormState;
+  try {
+    state = describeActivation("started", await startCampaign(business.id, campaignId, confirmed));
+  } catch (error) {
+    return toFormError(error);
+  }
+  revalidateCampaign(campaignId);
+  return state;
+}
+
+export async function resumeCampaignAction(campaignId: string): Promise<FormState> {
+  const business = await requireOwnedBusiness();
+  let state: FormState;
+  try {
+    state = describeActivation("resumed", await resumeCampaign(business.id, campaignId));
+  } catch (error) {
+    return toFormError(error);
+  }
+  revalidateCampaign(campaignId);
+  return state;
 }
 
 export async function pauseCampaignAction(campaignId: string): Promise<FormState> {
   const business = await requireOwnedBusiness();
-  const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, businessId: business.id },
-  });
-  if (!campaign) return { error: "Campaign not found" };
-
-  await prisma.campaign.update({
-    where: { id: campaign.id },
-    data: { status: "PAUSED" },
-  });
-
-  revalidatePath(`/dashboard/campaigns/${campaignId}`);
-  revalidatePath("/dashboard/campaigns");
-  return { success: true };
+  try {
+    await pauseCampaign(business.id, campaignId);
+  } catch (error) {
+    return toFormError(error);
+  }
+  revalidateCampaign(campaignId);
+  return {
+    success: true,
+    message: "Campaign paused. Calls already in progress will finish; no new calls will start.",
+  };
 }

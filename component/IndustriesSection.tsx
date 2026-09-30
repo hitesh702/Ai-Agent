@@ -1,3 +1,4 @@
+import "./IndustriesSection.css"
 const INDUSTRIES = [
   {
     icon: "🎓",

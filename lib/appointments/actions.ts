@@ -1,12 +1,22 @@
 "use server";
 
-import { z } from "zod";
+import { AppointmentStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/workspace";
+import {
+  bookAppointment,
+  updateAppointmentStatus,
+  type BookingSlot,
+} from "./booking";
 
-export type FormState = { error?: string; success?: boolean };
+export type FormState = {
+  error?: string;
+  success?: boolean;
+  message?: string;
+  alternatives?: BookingSlot[];
+};
 
 async function requireOwnedBusiness() {
   const session = await requireSession();
@@ -17,51 +27,47 @@ async function requireOwnedBusiness() {
   return business;
 }
 
-const createSchema = z.object({
-  leadId: z.string().min(1, "Select a lead"),
-  date: z.string().min(1, "Date is required"),
-  time: z.string().trim().optional(),
-  type: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
-});
-
 export async function createAppointmentAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const business = await requireOwnedBusiness();
 
-  const parsed = createSchema.safeParse({
+  const result = await bookAppointment(business.id, {
     leadId: formData.get("leadId"),
     date: formData.get("date"),
-    time: formData.get("time") || undefined,
+    time: formData.get("time"),
     type: formData.get("type") || undefined,
     notes: formData.get("notes") || undefined,
+    customerAgreed: formData.get("customerAgreed") === "on" ? true : undefined,
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+
+  if (!result.ok) {
+    return { error: result.message, alternatives: result.alternatives };
   }
 
-  const lead = await prisma.lead.findFirst({
-    where: { id: parsed.data.leadId, businessId: business.id },
-  });
-  if (!lead) return { error: "Lead not found" };
+  revalidatePath("/dashboard/appointments");
+  return {
+    success: true,
+    message: result.created
+      ? `Booked. ${result.confirmation}`
+      : `This appointment already exists. ${result.confirmation}`,
+  };
+}
 
-  const date = new Date(parsed.data.date);
-  if (Number.isNaN(date.getTime())) return { error: "Invalid date" };
+export async function updateAppointmentStatusAction(
+  appointmentId: string,
+  status: AppointmentStatus,
+): Promise<FormState> {
+  const business = await requireOwnedBusiness();
+  if (!Object.values(AppointmentStatus).includes(status)) {
+    return { error: "Choose a valid appointment status" };
+  }
 
-  await prisma.appointment.create({
-    data: {
-      businessId: business.id,
-      leadId: lead.id,
-      date,
-      time: parsed.data.time || null,
-      type: parsed.data.type || "counselling",
-      notes: parsed.data.notes || null,
-      status: "SCHEDULED",
-    },
-  });
+  const result = await updateAppointmentStatus(business.id, appointmentId, status);
+  if (!result.ok) return { error: result.message };
 
   revalidatePath("/dashboard/appointments");
+  revalidatePath(`/dashboard/appointments/${appointmentId}`);
   return { success: true };
 }

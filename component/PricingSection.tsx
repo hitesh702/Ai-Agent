@@ -1,5 +1,5 @@
 import Link from "next/link";
-
+import "./PricingSection.css"
 const PLANS = [
   {
     name: "STARTER",

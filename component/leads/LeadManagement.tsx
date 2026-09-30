@@ -20,6 +20,7 @@ import {
 } from "./CallModals";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { FollowUpModal } from "./FollowUpModal";
+import { ImportLeadsModal } from "./ImportLeadsModal";
 import { LeadDetails } from "./LeadDetails";
 import { LeadFilters } from "./LeadFilters";
 import { LeadFormModal } from "./LeadFormModal";
@@ -27,7 +28,6 @@ import { LeadList } from "./LeadList";
 import {
   emptyLeadForm,
   formatFollowUp,
-  getDemoAiSummary,
   isFollowUpOverdue,
   leadToFormValues,
 } from "./mappers";
@@ -90,6 +90,7 @@ export function LeadManagement({
   const [aiLead, setAiLead] = useState<LeadRecord | null>(null);
   const [followUpLead, setFollowUpLead] = useState<LeadRecord | null>(null);
   const [callLead, setCallLead] = useState<LeadRecord | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const notify = useCallback((type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -339,9 +340,18 @@ export function LeadManagement({
           <h1>Lead Management</h1>
           <p>Manage leads, calls, follow-ups, and customer activity</p>
         </div>
-        <button type="button" className="lm-btn lm-btn--primary" onClick={openCreate}>
-          + Add Lead
-        </button>
+        <div className="lm-header__actions">
+          <button
+            type="button"
+            className="lm-btn lm-btn--ghost"
+            onClick={() => setImportOpen(true)}
+          >
+            Import CSV
+          </button>
+          <button type="button" className="lm-btn lm-btn--primary" onClick={openCreate}>
+            + Add Lead
+          </button>
+        </div>
       </header>
 
       <div className="lm-toolbar">
@@ -381,6 +391,13 @@ export function LeadManagement({
         onSubmit={handleSave}
       />
 
+      <ImportLeadsModal
+        key={importOpen ? "import-open" : "import-closed"}
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => void refresh()}
+      />
+
       <DeleteLeadDialog
         open={Boolean(deleteTarget)}
         lead={deleteTarget}
@@ -418,13 +435,7 @@ export function LeadManagement({
         open={Boolean(aiLead)}
         lead={aiLead}
         onClose={() => setAiLead(null)}
-        summaryNode={
-          aiLead ? (
-            <AISummary
-              summary={aiLead.aiSummary ?? getDemoAiSummary(aiLead.name)}
-            />
-          ) : null
-        }
+        summaryNode={aiLead ? <AISummary summary={aiLead.aiSummary} /> : null}
       />
 
       <LeadDetails

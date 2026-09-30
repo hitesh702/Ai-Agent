@@ -1,3 +1,5 @@
+import "./DashboardPreview.css";
+
 export default function DashboardPreview() {
   return (
     <section className="dashboard-preview">

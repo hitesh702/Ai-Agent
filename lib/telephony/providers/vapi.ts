@@ -8,6 +8,12 @@ import type {
   StartOutboundCallInput,
   TelephonyProvider,
 } from "@/lib/telephony/types";
+import { localDateInTimeZone } from "@/lib/followups/schedule";
+import {
+  appointmentAgentRules,
+  buildAppointmentTools,
+  NO_BOOKING_RULE,
+} from "@/lib/appointments/agent-tools";
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -48,6 +54,12 @@ export class VapiTelephonyProvider implements TelephonyProvider {
   ): Promise<{ providerCallId: string }> {
     const config = this.getConfig();
     const serverUrl = input.serverUrl || config.serverUrl;
+    const timeZone = input.business.timezone || "Asia/Kolkata";
+    const now = new Date();
+    const today = `${localDateInTimeZone(now, timeZone)} (${new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(now)})`;
+    const appointmentTools = serverUrl
+      ? buildAppointmentTools({ callId: input.callId, serverUrl })
+      : [];
 
     const assistant = {
       name: input.agent.name,
@@ -59,9 +71,15 @@ export class VapiTelephonyProvider implements TelephonyProvider {
         messages: [
           {
             role: "system",
-            content: buildAgentSystemPrompt(input),
+            content: [
+              buildAgentSystemPrompt(input),
+              appointmentTools.length
+                ? appointmentAgentRules(today, timeZone)
+                : NO_BOOKING_RULE,
+            ].join("\n\n"),
           },
         ],
+        ...(appointmentTools.length ? { tools: appointmentTools } : {}),
       },
       voice: {
         provider: "11labs",
@@ -99,11 +117,21 @@ export class VapiTelephonyProvider implements TelephonyProvider {
             followUpDate: {
               type: "string",
               description:
-                "Preferred demo/counselling or callback time if stated (e.g. kal shaam 5pm)",
+                "Callback/demo date the customer asked for, as YYYY-MM-DD. Omit if no day was given.",
+            },
+            followUpTime: {
+              type: "string",
+              description:
+                "Callback/demo time the customer asked for, as HH:MM 24-hour (e.g. kal shaam 5pm -> 17:00). Omit if no time was given.",
             },
             customerSentiment: { type: "string" },
+            optOut: {
+              type: "boolean",
+              description:
+                "True only if the customer explicitly asked not to be called again (do-not-call / remove my number / mujhe dobara call mat karna)",
+            },
           },
-          required: ["interest", "followUpRequired"],
+          required: ["interest", "followUpRequired", "optOut"],
         },
         structuredDataPrompt: [
           "Classify using ONLY these outcomes: INTERESTED, NOT_INTERESTED, FOLLOW_UP, NO_RESPONSE.",
@@ -112,6 +140,8 @@ export class VapiTelephonyProvider implements TelephonyProvider {
           "FOLLOW_UP = asked to call later without confirming demo/admission now (e.g. mujhe kal call karna).",
           "NO_RESPONSE = no meaningful engagement.",
           "Set followUpRequired true when a later call or scheduled demo time was requested.",
+          `Today is ${today} in timezone ${timeZone}; resolve relative days (aaj, kal, parso, next Monday) against it and give followUpDate/followUpTime in that timezone.`,
+          "Set optOut true only when the customer explicitly asks never to be called again; a plain 'not interested' is NOT an opt-out.",
         ].join(" "),
       },
       ...(serverUrl
@@ -200,7 +230,9 @@ export class VapiTelephonyProvider implements TelephonyProvider {
           ? structured.followUpRequired
           : undefined,
       followUpDate: asString(structured?.followUpDate),
+      followUpTime: asString(structured?.followUpTime),
       customerSentiment: asString(structured?.customerSentiment),
+      optOut: structured?.optOut === true ? true : undefined,
       raw,
     };
   }

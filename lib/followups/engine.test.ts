@@ -18,6 +18,7 @@ import {
 } from "./process";
 import { validateFollowUpForCalling } from "./validate";
 import { countActiveCallsForBusiness, getCallConcurrencyLimit } from "../calling/safe-queue";
+import { applyProviderSnapshot } from "../telephony/sync";
 
 const suffix = `fu_${Date.now()}`;
 
@@ -594,5 +595,159 @@ describe("follow-up engine", () => {
     });
     assert.equal(first.count, 1);
     assert.equal(second.count, 0);
+  });
+
+  it("cancels the follow-up when the lead is marked do-not-call", async () => {
+    const lead = await prisma.lead.create({
+      data: { businessId, name: "DNC Later", phone: "9876500010" },
+    });
+    const job = await createFollowUpJob({
+      businessId,
+      leadId: lead.id,
+      agentId,
+      scheduledAt: new Date(Date.now() - 1000),
+    });
+    await prisma.lead.update({ where: { id: lead.id }, data: { doNotCall: true } });
+
+    const result = await validateFollowUpForCalling(job.id);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.action, "cancel");
+      assert.match(result.reason, /opted out/i);
+    }
+  });
+
+  it("refuses to create a follow-up for a do-not-call lead", async () => {
+    const lead = await prisma.lead.create({
+      data: { businessId, name: "DNC", phone: "9876500011", doNotCall: true },
+    });
+    await assert.rejects(
+      scheduleManualFollowUp({
+        businessId,
+        leadId: lead.id,
+        scheduledAt: new Date(Date.now() + 60_000),
+      }),
+      /opted out/i,
+    );
+    assert.equal(await prisma.followUp.count({ where: { leadId: lead.id } }), 0);
+  });
+
+  it("refuses to create a follow-up for another business's lead", async () => {
+    await assert.rejects(
+      createFollowUpJob({
+        businessId: otherBusinessId,
+        leadId,
+        scheduledAt: new Date(Date.now() + 60_000),
+      }),
+      /Lead not found/,
+    );
+  });
+
+  it("cancels the follow-up when the phone number is not callable", async () => {
+    const lead = await prisma.lead.create({
+      data: { businessId, name: "Bad Phone", phone: "12345" },
+    });
+    const job = await createFollowUpJob({
+      businessId,
+      leadId: lead.id,
+      agentId,
+      scheduledAt: new Date(Date.now() - 1000),
+    });
+
+    const result = await validateFollowUpForCalling(job.id);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.action, "cancel");
+      assert.match(result.reason, /phone/i);
+    }
+  });
+
+  it("reschedules to 09:00 IST when the business window allows but legal hours do not", async () => {
+    const prevKey = process.env.VAPI_API_KEY;
+    const prevPhone = process.env.VAPI_PHONE_NUMBER_ID;
+    process.env.VAPI_API_KEY = "test-key";
+    process.env.VAPI_PHONE_NUMBER_ID = "test-phone";
+
+    try {
+      const lead = await prisma.lead.create({
+        data: { businessId, name: "Late Night", phone: "9876500012" },
+      });
+      const job = await createFollowUpJob({
+        businessId,
+        leadId: lead.id,
+        agentId,
+        scheduledAt: new Date(Date.now() - 1000),
+      });
+
+      // Business window is 00:00–23:59 every day; 17:00 UTC is 22:30 IST.
+      const lateNight = new Date("2026-09-21T17:00:00.000Z");
+      const result = await validateFollowUpForCalling(job.id, lateNight);
+      assert.equal(result.ok, false);
+      if (!result.ok) {
+        assert.equal(result.action, "reschedule");
+        assert.match(result.reason, /legal/i);
+        assert.equal(result.rescheduleAt?.toISOString(), "2026-09-22T03:30:00.000Z");
+      }
+    } finally {
+      if (prevKey === undefined) delete process.env.VAPI_API_KEY;
+      else process.env.VAPI_API_KEY = prevKey;
+      if (prevPhone === undefined) delete process.env.VAPI_PHONE_NUMBER_ID;
+      else process.env.VAPI_PHONE_NUMBER_ID = prevPhone;
+    }
+  });
+
+  it("stores the AI's follow-up date + time in the business timezone", async () => {
+    const lead = await prisma.lead.create({
+      data: { businessId, name: "Callback", phone: "9876500013" },
+    });
+    const call = await prisma.call.create({
+      data: { businessId, leadId: lead.id, agentId, status: "IN_PROGRESS" },
+    });
+
+    await applyProviderSnapshot({
+      callaiCallId: call.id,
+      snapshot: {
+        providerCallId: `prov_${suffix}_tz`,
+        status: "in-progress",
+        interest: "FOLLOW_UP",
+        followUpRequired: true,
+        followUpDate: "2099-01-05",
+        followUpTime: "17:00",
+        raw: {},
+      },
+    });
+
+    const result = await prisma.callResult.findUniqueOrThrow({
+      where: { callId: call.id },
+    });
+    assert.equal(result.followUpRequired, true);
+    assert.equal(result.followUpDate?.toISOString(), "2099-01-05T11:30:00.000Z");
+  });
+
+  it("does not crash on a free-text follow-up date from the AI", async () => {
+    const lead = await prisma.lead.create({
+      data: { businessId, name: "Free Text", phone: "9876500014" },
+    });
+    const call = await prisma.call.create({
+      data: { businessId, leadId: lead.id, agentId, status: "IN_PROGRESS" },
+    });
+
+    await applyProviderSnapshot({
+      callaiCallId: call.id,
+      snapshot: {
+        providerCallId: `prov_${suffix}_text`,
+        status: "in-progress",
+        interest: "FOLLOW_UP",
+        followUpRequired: true,
+        followUpDate: "kal shaam 5pm",
+        raw: {},
+      },
+    });
+
+    const result = await prisma.callResult.findUniqueOrThrow({
+      where: { callId: call.id },
+    });
+    assert.equal(result.followUpRequired, true);
+    assert.equal(result.followUpDate, null);
   });
 });

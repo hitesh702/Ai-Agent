@@ -120,7 +120,6 @@ export function mapApiCallToHistory(call: ApiCall): CallHistoryItem {
       call.summary ||
       (call.status === "FAILED" ? "Call failed to connect." : "No notes"),
     recordingUrl: call.recordingUrl ?? null,
-    isDemo: false,
   };
 }
 
@@ -149,71 +148,7 @@ export function buildAiSummaryFromLead(lead: ApiLead): AiSummary | null {
     followUp: result?.followUpDate
       ? `Follow-up suggested for ${new Date(result.followUpDate).toLocaleString()}`
       : "No follow-up date on file.",
-    isDemo: false,
   };
-}
-
-export function getDemoAiSummary(leadName: string): AiSummary {
-  return {
-    conversationSummary: `${leadName} asked about course fees, batch timings, and scholarship options. The conversation stayed polite and exploratory.`,
-    requirements: [
-      "Looking for evening / weekend batch options",
-      "Needs fee structure and installment clarity",
-    ],
-    keyPoints: [
-      "Compared with a competing institute nearby",
-      "Parent involvement likely before decision",
-      "Interested in a free demo class",
-    ],
-    objections: [
-      "Fees feel slightly high vs competitors",
-      "Travel time to campus is a concern",
-    ],
-    recommendedNextAction:
-      "Send fee brochure on WhatsApp and book a counselor callback within 24 hours.",
-    followUp: "Suggested follow-up tomorrow evening between 6–8 PM.",
-    isDemo: true,
-  };
-}
-
-export function getDemoCallHistory(leadName: string): CallHistoryItem[] {
-  const now = Date.now();
-  return [
-    {
-      id: `demo-call-1-${leadName}`,
-      date: new Date(now - 86400000).toLocaleDateString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-      time: "5:12 PM",
-      dateIso: new Date(now - 86400000).toISOString(),
-      status: "Completed",
-      duration: "4m 18s",
-      callType: "Outbound AI",
-      agent: "Priya — Admissions",
-      notes: "Discussed NEET foundation batch and demo class availability.",
-      recordingUrl: null,
-      isDemo: true,
-    },
-    {
-      id: `demo-call-2-${leadName}`,
-      date: new Date(now - 3 * 86400000).toLocaleDateString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-      time: "11:40 AM",
-      dateIso: new Date(now - 3 * 86400000).toISOString(),
-      status: "Missed",
-      duration: "—",
-      callType: "Outbound AI",
-      agent: "Asha — Outreach",
-      notes: "No answer. Auto-retry queued for evening window.",
-      recordingUrl: null,
-      isDemo: true,
-    },
-  ];
 }
 
 export function mapApiLeadToRecord(lead: ApiLead): LeadRecord {

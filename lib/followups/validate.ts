@@ -2,10 +2,12 @@ import { FollowUpStatus, LeadStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { isTelephonyConfigured } from "@/lib/telephony";
 import {
-  isWithinCallingWindow,
-  nextAllowedCallingTime,
-  type CallingWindowConfig,
-} from "./schedule";
+  callingWindowsFor,
+  isCallablePhone,
+  isWithinAllWindows,
+  nextTimeInAllWindows,
+} from "@/lib/calling/compliance";
+import { isWithinCallingWindow, type CallingWindowConfig } from "./schedule";
 
 export type FollowUpValidationResult =
   | { ok: true; agentId: string }
@@ -53,11 +55,19 @@ export async function validateFollowUpForCalling(
   }
 
   // Opt-out / explicit refusal
-  if (lead.status === LeadStatus.NOT_INTERESTED) {
+  if (lead.doNotCall || lead.status === LeadStatus.NOT_INTERESTED) {
     return {
       ok: false,
       action: "cancel",
       reason: "Lead opted out or refused further calls",
+    };
+  }
+
+  if (!isCallablePhone(lead.phone)) {
+    return {
+      ok: false,
+      action: "cancel",
+      reason: "Lead phone number is not a valid callable number",
     };
   }
 
@@ -102,13 +112,15 @@ export async function validateFollowUpForCalling(
     callingDays: business.callingDays || "1,2,3,4,5,6",
   };
 
-  if (!isWithinCallingWindow(now, windowConfig)) {
-    const next = nextAllowedCallingTime(now, windowConfig);
+  const windows = callingWindowsFor(lead.phone, windowConfig);
+  if (!isWithinAllWindows(now, windows)) {
     return {
       ok: false,
       action: "reschedule",
-      reason: "Outside business calling hours",
-      rescheduleAt: next,
+      reason: isWithinCallingWindow(now, windowConfig)
+        ? "Outside legal calling hours (09:00–21:00 IST)"
+        : "Outside business calling hours",
+      rescheduleAt: nextTimeInAllWindows(now, windows),
     };
   }
 

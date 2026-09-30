@@ -6,17 +6,25 @@ import {
   requireApiBusiness,
 } from "@/lib/api/http";
 import { appointmentCreateSchema } from "@/lib/api/schemas";
-import { prisma } from "@/lib/db";
+import {
+  bookAppointment,
+  listAppointments,
+  type BookingFailureCode,
+} from "@/lib/appointments/booking";
+
+const FAILURE_STATUS: Record<BookingFailureCode, number> = {
+  invalid_input: 400,
+  invalid_lead: 404,
+  invalid_call: 404,
+  past_time: 400,
+  outside_hours: 400,
+  slot_taken: 409,
+};
 
 export async function GET() {
   try {
     const { business } = await requireApiBusiness();
-    const appointments = await prisma.appointment.findMany({
-      where: { businessId: business.id },
-      include: { lead: true, call: true },
-      orderBy: { date: "asc" },
-    });
-    return jsonOk(appointments);
+    return jsonOk(await listAppointments(business.id));
   } catch (error) {
     return handleApiError(error);
   }
@@ -27,38 +35,22 @@ export async function POST(request: Request) {
     const { business } = await requireApiBusiness();
     const body = await parseJsonBody(request, appointmentCreateSchema);
 
-    const lead = await prisma.lead.findFirst({
-      where: { id: body.leadId, businessId: business.id },
-    });
-    if (!lead) throw new ApiError(404, "Lead not found");
-
-    if (body.callId) {
-      const call = await prisma.call.findFirst({
-        where: { id: body.callId, businessId: business.id },
+    const result = await bookAppointment(business.id, body);
+    if (!result.ok) {
+      throw new ApiError(FAILURE_STATUS[result.code], result.message, {
+        code: result.code,
+        alternatives: result.alternatives,
       });
-      if (!call) throw new ApiError(404, "Call not found");
     }
 
-    const date = new Date(body.date);
-    if (Number.isNaN(date.getTime())) {
-      throw new ApiError(400, "Invalid date");
-    }
-
-    const appointment = await prisma.appointment.create({
-      data: {
-        businessId: business.id,
-        leadId: body.leadId,
-        callId: body.callId ?? null,
-        date,
-        time: body.time ?? null,
-        type: body.type ?? null,
-        notes: body.notes ?? null,
-        status: body.status ?? "SCHEDULED",
+    return jsonOk(
+      {
+        appointment: result.appointment,
+        created: result.created,
+        confirmation: result.confirmation,
       },
-      include: { lead: true },
-    });
-
-    return jsonOk(appointment, 201);
+      result.created ? 201 : 200,
+    );
   } catch (error) {
     return handleApiError(error);
   }

@@ -1,0 +1,300 @@
+
+
+.pricing {
+  padding: 110px 24px;
+  background: #f8fafc;
+}
+
+.pricing .section-shell {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* =========================
+   SECTION HEADING
+========================= */
+
+.pricing .section-heading {
+  max-width: 700px;
+  margin: 0 auto 60px;
+  text-align: center;
+}
+
+.pricing .section-eyebrow {
+  margin: 0 0 14px;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.pricing .section-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 44px;
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -1.5px;
+}
+
+.pricing .section-heading > p:last-child {
+  max-width: 620px;
+  margin: 18px auto 0;
+  color: #6b7280;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* =========================
+   PRICING GRID
+========================= */
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* =========================
+   PRICING CARD
+========================= */
+
+.pricing-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  min-height: 380px;
+  padding: 36px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+
+  background: #ffffff;
+
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.pricing-card:hover {
+  transform: translateY(-6px);
+
+  border-color: #cbd5e1;
+
+  box-shadow:
+    0 20px 45px rgba(15, 23, 42, 0.08),
+    0 5px 15px rgba(15, 23, 42, 0.04);
+}
+
+/* =========================
+   CARD LABEL
+========================= */
+
+.pricing-label {
+  margin: 0 0 12px;
+
+  color: #2563eb;
+
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+/* =========================
+   CARD TITLE
+========================= */
+
+.pricing-card h3 {
+  margin: 0 0 14px;
+
+  color: #111827;
+
+  font-size: 25px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* =========================
+   DESCRIPTION
+========================= */
+
+.pricing-card > p:not(.pricing-label) {
+  max-width: 300px;
+  margin: 0;
+
+  color: #6b7280;
+
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* =========================
+   BUTTON
+========================= */
+
+.pricing-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  min-height: 48px;
+
+  margin-top: auto;
+  padding: 13px 20px;
+
+  border: 1px solid #2563eb;
+  border-radius: 10px;
+
+  color: #2563eb;
+  background: #ffffff;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  text-decoration: none;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.pricing-button:hover {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.pricing-button:active {
+  transform: scale(0.98);
+}
+
+/* =========================
+   FEATURED / GROWTH CARD
+========================= */
+
+.pricing-featured {
+  border: 1.5px solid #2563eb;
+
+  box-shadow:
+    0 20px 50px rgba(37, 99, 235, 0.12),
+    0 5px 20px rgba(37, 99, 235, 0.06);
+}
+
+.pricing-featured:hover {
+  border-color: #1d4ed8;
+
+  box-shadow:
+    0 25px 55px rgba(37, 99, 235, 0.16),
+    0 8px 20px rgba(37, 99, 235, 0.08);
+}
+
+/* Featured button */
+
+.pricing-featured .pricing-button {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.pricing-featured .pricing-button:hover {
+  background: #1d4ed8;
+}
+
+/* =========================
+   GROWING TEAMS BADGE
+========================= */
+
+.pricing-badge {
+  position: absolute;
+
+  top: 18px;
+  right: 18px;
+
+  padding: 7px 12px;
+
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+
+  color: #1d4ed8;
+  background: #eff6ff;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 950px) {
+  .pricing {
+    padding: 90px 20px;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .pricing-card {
+    min-height: 340px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 600px) {
+  .pricing {
+    padding: 70px 16px;
+  }
+
+  .pricing .section-heading {
+    margin-bottom: 40px;
+  }
+
+  .pricing .section-heading h2 {
+    font-size: 32px;
+    letter-spacing: -0.8px;
+  }
+
+  .pricing .section-heading > p:last-child {
+    font-size: 15px;
+  }
+
+  .pricing-grid {
+    gap: 18px;
+  }
+
+  .pricing-card {
+    min-height: 320px;
+    padding: 28px 24px;
+    border-radius: 16px;
+  }
+
+  .pricing-card h3 {
+    font-size: 23px;
+  }
+
+  .pricing-card > p:not(.pricing-label) {
+    font-size: 14px;
+  }
+
+  .pricing-badge {
+    top: 16px;
+    right: 16px;
+    padding: 6px 10px;
+    font-size: 9px;
+  }
+}

@@ -2,10 +2,9 @@ import type { CallHistoryItem } from "./types";
 
 type Props = {
   items: CallHistoryItem[];
-  usingDemo: boolean;
 };
 
-export function CallHistory({ items, usingDemo }: Props) {
+export function CallHistory({ items }: Props) {
   if (items.length === 0) {
     return (
       <div className="lm-empty lm-empty--inset">
@@ -16,11 +15,6 @@ export function CallHistory({ items, usingDemo }: Props) {
 
   return (
     <div className="lm-timeline">
-      {usingDemo ? (
-        <p className="lm-demo-banner" role="note">
-          Demo call history — replace with live telephony events when available.
-        </p>
-      ) : null}
       <ol className="lm-timeline__list">
         {items.map((item) => (
           <li key={item.id} className="lm-timeline__item">

@@ -53,7 +53,6 @@ export type CallHistoryItem = {
   agent: string;
   notes: string;
   recordingUrl?: string | null;
-  isDemo?: boolean;
 };
 
 export type AiSummary = {
@@ -63,7 +62,6 @@ export type AiSummary = {
   objections: string[];
   recommendedNextAction: string;
   followUp: string;
-  isDemo: boolean;
 };
 
 export type LeadRecord = {

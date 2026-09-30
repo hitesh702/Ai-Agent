@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "./CoachingSection.css"
 
 export default function CoachingSection() {
   const flow = [

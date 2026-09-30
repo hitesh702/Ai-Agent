@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "./HeroSection.css"
 import { CallPreview } from "@/component/CallPreview";
 
 export default function HeroSection() {

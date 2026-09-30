@@ -75,7 +75,11 @@ export async function PUT(request: Request, context: Ctx) {
       if (Number.isNaN(scheduled.getTime())) {
         throw new ApiError(400, "Invalid followUpAt");
       }
-      if (existing.status === "NOT_INTERESTED") {
+      if (
+        existing.doNotCall ||
+        existing.status === "NOT_INTERESTED" ||
+        rest.status === "NOT_INTERESTED"
+      ) {
         throw new ApiError(
           400,
           "Cannot schedule follow-up for an opted-out lead",
@@ -102,6 +106,17 @@ export async function PUT(request: Request, context: Ctx) {
         where: { id: existing.id },
       });
       return jsonOk(updated);
+    }
+
+    if (
+      rest.status === "NOT_INTERESTED" &&
+      existing.status !== "NOT_INTERESTED"
+    ) {
+      await cancelActiveFollowUpsForLead({
+        businessId: business.id,
+        leadId: existing.id,
+        reason: "Lead marked not interested",
+      });
     }
 
     const updated = await prisma.lead.update({

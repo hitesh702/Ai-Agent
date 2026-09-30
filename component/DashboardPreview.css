@@ -1,0 +1,267 @@
+
+.dashboard-preview {
+  padding: 100px 24px;
+  background: #f8fafc;
+}
+
+.section-shell {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.section-heading {
+  max-width: 680px;
+  margin: 0 auto 55px;
+  text-align: center;
+}
+
+.section-eyebrow {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #2563eb;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 42px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.section-heading > p:last-child {
+  margin: 18px auto 0;
+  max-width: 600px;
+  color: #6b7280;
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+/* Dashboard Mockup */
+
+.dashboard-mockup {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow:
+    0 25px 60px rgba(15, 23, 42, 0.08),
+    0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+/* Top Bar */
+
+.mockup-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.mockup-topbar strong {
+  color: #111827;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.mockup-topbar span {
+  padding: 7px 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #6b7280;
+  background: #f9fafb;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Stats */
+
+.mockup-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 24px;
+  background: #f8fafc;
+}
+
+.mockup-stat {
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.mockup-stat span {
+  display: block;
+  margin-bottom: 10px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mockup-stat strong {
+  display: block;
+  color: #111827;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+/* Table */
+
+.mockup-table {
+  padding: 0 24px 24px;
+  background: #f8fafc;
+}
+
+.mockup-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 0.7fr;
+  align-items: center;
+  min-height: 62px;
+  padding: 0 18px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  font-size: 14px;
+}
+
+.mockup-row:first-child {
+  border-radius: 10px 10px 0 0;
+}
+
+.mockup-row:last-child {
+  border-radius: 0 0 10px 10px;
+  border-bottom: none;
+}
+
+.mockup-heading {
+  min-height: 48px;
+  color: #6b7280;
+  background: #f9fafb;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Status */
+
+.status-success {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.status-warning {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.status-muted {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Hover */
+
+.mockup-row:not(.mockup-heading):hover {
+  background: #f9fafb;
+}
+
+/* Tablet */
+
+@media (max-width: 900px) {
+  .dashboard-preview {
+    padding: 80px 20px;
+  }
+
+  .section-heading h2 {
+    font-size: 36px;
+  }
+
+  .mockup-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mockup-row {
+    grid-template-columns: 1.3fr 1fr 1fr;
+  }
+
+  .mockup-row span:last-child {
+    display: none;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .dashboard-preview {
+    padding: 65px 16px;
+  }
+
+  .section-heading {
+    margin-bottom: 35px;
+  }
+
+  .section-eyebrow {
+    font-size: 11px;
+  }
+
+  .section-heading h2 {
+    font-size: 30px;
+    letter-spacing: -0.5px;
+  }
+
+  .section-heading > p:last-child {
+    font-size: 15px;
+  }
+
+  .mockup-topbar {
+    padding: 16px;
+  }
+
+  .mockup-topbar strong {
+    font-size: 15px;
+  }
+
+  .mockup-topbar span {
+    font-size: 12px;
+  }
+
+  .mockup-stats {
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .mockup-stat {
+    padding: 15px;
+  }
+
+  .mockup-stat span {
+    font-size: 12px;
+  }
+
+  .mockup-stat strong {
+    font-size: 22px;
+  }
+
+  .mockup-table {
+    overflow-x: auto;
+    padding: 0 16px 16px;
+  }
+
+  .mockup-row {
+    min-width: 500px;
+    font-size: 13px;
+  }
+
+  .mockup-row span:last-child {
+    display: block;
+  }
+}

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/followups/*.test.ts",
+    "test": "tsx --test lib/followups/*.test.ts lib/leads/*.test.ts lib/campaigns/*.test.ts lib/ai/*.test.ts lib/appointments/*.test.ts",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio"

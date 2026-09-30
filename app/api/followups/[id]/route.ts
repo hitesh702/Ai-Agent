@@ -90,8 +90,17 @@ export async function PATCH(request: Request, context: Ctx) {
       throw new ApiError(400, `Cannot reschedule a ${existing.status} follow-up`);
     }
 
+    const lead = await prisma.lead.findFirst({
+      where: { id: existing.leadId, businessId: business.id },
+      select: { doNotCall: true, status: true },
+    });
+    if (!lead || lead.doNotCall || lead.status === "NOT_INTERESTED") {
+      throw new ApiError(400, "Cannot schedule follow-up for an opted-out lead");
+    }
+
     const scheduledAt = parseFollowUpScheduleInput({
       scheduledAt: body.scheduledAt,
+      timeZone: business.timezone,
     });
     if (!scheduledAt) throw new ApiError(400, "Invalid scheduledAt");
 

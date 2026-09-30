@@ -1,6 +1,6 @@
 import { FollowUpStatus, LeadStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { parseFollowUpScheduleInput } from "./schedule";
+import { ApiError } from "@/lib/api/http";
 
 const ACTIVE_FOLLOW_UP: FollowUpStatus[] = [
   FollowUpStatus.PENDING,
@@ -23,6 +23,15 @@ export async function createFollowUpJob(
 ) {
   if (Number.isNaN(input.scheduledAt.getTime())) {
     throw new Error("Invalid follow-up scheduledAt");
+  }
+
+  const lead = await tx.lead.findFirst({
+    where: { id: input.leadId, businessId: input.businessId },
+    select: { doNotCall: true },
+  });
+  if (!lead) throw new ApiError(404, "Lead not found");
+  if (lead.doNotCall) {
+    throw new ApiError(403, "This lead has opted out of calls");
   }
 
   // Duplicate protection: one active follow-up per lead (or same source call)
@@ -97,13 +106,15 @@ export async function scheduleFollowUpFromCallResult(input: {
   agentId: string;
   callId: string;
   followUpRequired: boolean;
-  followUpDate?: Date | string | null;
+  /** Customer-requested time; null/invalid falls back to 24 hours from now. */
+  followUpDate?: Date | null;
 }) {
   if (!input.followUpRequired) return null;
 
   const scheduledAt =
-    parseFollowUpScheduleInput({ scheduledAt: input.followUpDate }) ??
-    new Date(Date.now() + 24 * 60 * 60 * 1000);
+    input.followUpDate && !Number.isNaN(input.followUpDate.getTime())
+      ? input.followUpDate
+      : new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   return prisma.$transaction(async (tx) => {
     await tx.lead.update({

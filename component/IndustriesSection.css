@@ -1,0 +1,214 @@
+.industries {
+  width: 100%;
+  padding: 110px 20px;
+  background: #ffffff;
+}
+
+.industries .section-shell {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* =========================
+   SECTION HEADING
+========================= */
+
+.industries .section-heading {
+  max-width: 720px;
+  margin: 0 auto 60px;
+  text-align: center;
+}
+
+.industries .section-eyebrow {
+  margin: 0 0 14px;
+
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+
+  color: #2563eb;
+}
+
+.industries .section-heading h2 {
+  margin: 0;
+
+  font-size: 42px;
+  line-height: 1.15;
+  font-weight: 700;
+
+  letter-spacing: -1px;
+  color: #111827;
+}
+
+.industries .section-heading > p:last-child {
+  max-width: 650px;
+  margin: 20px auto 0;
+
+  font-size: 17px;
+  line-height: 1.7;
+
+  color: #64748b;
+}
+
+/* =========================
+   INDUSTRY GRID
+========================= */
+
+.industry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+/* =========================
+   INDUSTRY CARD
+========================= */
+
+.industry-card {
+  position: relative;
+
+  padding: 32px 28px;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.05);
+
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.industry-card:hover {
+  transform: translateY(-7px);
+
+  border-color: #bfdbfe;
+
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.09);
+}
+
+/* =========================
+   ICON
+========================= */
+
+.industry-icon {
+  width: 56px;
+  height: 56px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 22px;
+
+  border-radius: 15px;
+
+  background: #eff6ff;
+
+  font-size: 27px;
+
+  transition:
+    transform 0.3s ease,
+    background 0.3s ease;
+}
+
+.industry-card:hover .industry-icon {
+  transform: scale(1.08);
+
+  background: #dbeafe;
+}
+
+/* =========================
+   TITLE
+========================= */
+
+.industry-card h3 {
+  margin: 0 0 10px;
+
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+/* =========================
+   DESCRIPTION
+========================= */
+
+.industry-card p {
+  margin: 0;
+
+  font-size: 15px;
+  line-height: 1.7;
+
+  color: #64748b;
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 900px) {
+  .industries {
+    padding: 90px 20px;
+  }
+
+  .industry-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .industries .section-heading h2 {
+    font-size: 36px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 600px) {
+  .industries {
+    padding: 70px 16px;
+  }
+
+  .industries .section-heading {
+    margin-bottom: 40px;
+  }
+
+  .industries .section-heading h2 {
+    font-size: 30px;
+    letter-spacing: -0.5px;
+  }
+
+  .industries .section-heading > p:last-child {
+    font-size: 15px;
+  }
+
+  .industry-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .industry-card {
+    padding: 26px 22px;
+  }
+
+  .industry-icon {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 18px;
+  }
+
+  .industry-card h3 {
+    font-size: 19px;
+  }
+
+  .industry-card p {
+    font-size: 14px;
+  }
+}

@@ -1,73 +1,102 @@
+"use client";
+import "./FAQSection.css";
+
+
+import { useState } from "react";
+import "./FAQSection.css";
+
 const FAQS = [
+  {
+    question: "What is CallAI?",
+    answer:
+      "CallAI is an AI voice calling platform that helps businesses call leads, have natural conversations, qualify enquiries, and organize follow-ups.",
+  },
   {
     question: "Can CallAI speak Hindi and Hinglish?",
     answer:
-      "Yes. The initial product is designed around Hindi, Hinglish and English conversations.",
+      "Yes. CallAI is designed to support Hindi, Hinglish, and English conversations so businesses can communicate with customers naturally.",
   },
   {
-    question: "Can I provide my own business information?",
+    question: "Can I use CallAI for my coaching institute?",
     answer:
-      "Yes. Businesses will be able to provide approved information such as courses, fees, timings, FAQs and policies.",
+      "Yes. Coaching institutes can use CallAI to contact new enquiries, understand course requirements, identify interested students, and manage follow-ups.",
   },
   {
-    question: "Can I upload my existing leads?",
+    question: "Will I get a transcript after the call?",
     answer:
-      "Yes. CSV lead import will allow businesses to bring their existing leads into CallAI.",
+      "Yes. Call conversations can be converted into transcripts so your team can review what was discussed with each lead.",
   },
   {
-    question: "Can I see what happened during a call?",
+    question: "Can CallAI automatically qualify leads?",
     answer:
-      "Yes. Completed calls can include status, duration, transcript, AI summary and lead classification.",
+      "Yes. Based on the conversation, leads can be classified into outcomes such as interested, not interested, or follow-up.",
   },
   {
-    question: "Will the AI make up information?",
+    question: "Do I need a technical team to use CallAI?",
     answer:
-      "The agent is designed to use approved business information and should escalate questions when the required information is unavailable.",
-  },
-  {
-    question: "Can customers ask the AI to stop calling?",
-    answer:
-      "Yes. Customer refusal and opt-out requests should be respected by the calling system.",
+      "No. CallAI is designed as a business-focused platform so teams can configure their AI agent and manage leads without building the calling system themselves.",
   },
 ];
 
 export default function FAQSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggleFAQ = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
   return (
-    <section className="faq">
-      <div className="section-shell faq-shell">
-        <div className="section-heading">
-          <p className="section-eyebrow">
-            FAQ
-          </p>
+    <section className="faq-section" id="faq">
+      <div className="faq-container">
+
+        <div className="faq-heading">
+          <p className="faq-label">FAQ</p>
 
           <h2>
-            Questions about CallAI?
+            Frequently asked
+            <span> questions.</span>
           </h2>
+
+          <p>
+            Everything you need to know about using CallAI for your
+            business.
+          </p>
         </div>
 
         <div className="faq-list">
-          {FAQS.map((faq) => (
-            <details
-              className="faq-item"
-              key={faq.question}
-            >
-              <summary>
-                <span>
-                  {faq.question}
-                </span>
+          {FAQS.map((faq, index) => {
+            const isOpen = openIndex === index;
 
-                <span className="faq-plus">
-                  +
-                </span>
-              </summary>
+            return (
+              <div
+                className={`faq-item ${isOpen ? "faq-open" : ""}`}
+                key={faq.question}
+              >
+                <button
+                  type="button"
+                  className="faq-question"
+                  onClick={() => toggleFAQ(index)}
+                  aria-expanded={isOpen}
+                >
+                  <span>{faq.question}</span>
 
-              <p>
-                {faq.answer}
-              </p>
-            </details>
-          ))}
+                  <span className="faq-icon">
+                    {isOpen ? "−" : "+"}
+                  </span>
+                </button>
+
+                {isOpen && (
+                  <div className="faq-answer">
+                    <p>{faq.answer}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+
       </div>
     </section>
   );
 }
+

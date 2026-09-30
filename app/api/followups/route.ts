@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     });
     if (!lead) throw new ApiError(404, "Lead not found");
 
-    if (lead.status === "NOT_INTERESTED") {
+    if (lead.doNotCall || lead.status === "NOT_INTERESTED") {
       throw new ApiError(400, "Cannot schedule follow-up for an opted-out lead");
     }
 

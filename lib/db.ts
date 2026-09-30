@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /** Bump when Prisma models change so the dev singleton is replaced. */
-const SCHEMA_MARK = "followUpEngineV1";
+const SCHEMA_MARK = "appointmentBookingV1";
 
 function createPrismaClient() {
   const client = new PrismaClient({

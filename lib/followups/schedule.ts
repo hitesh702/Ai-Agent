@@ -159,26 +159,124 @@ function snapToLocalWindowStart(
   return best.getTime() > approx.getTime() ? approx : best;
 }
 
+function timeZoneOffsetMs(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(instant);
+  const get = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value ?? "0");
+  const wallClockAsUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second"),
+  );
+  return wallClockAsUtc - Math.floor(instant.getTime() / 1000) * 1000;
+}
+
+/**
+ * Convert a wall-clock date ("YYYY-MM-DD") and time ("HH:mm") in `timeZone`
+ * to the absolute instant. Returns null for impossible dates or bad input.
+ */
+export function zonedDateTimeToUtc(
+  date: string,
+  time: string,
+  timeZone: string,
+): Date | null {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+  const hm = parseHm(time);
+  if (!d || !hm) return null;
+
+  const year = Number(d[1]);
+  const month = Number(d[2]) - 1;
+  const day = Number(d[3]);
+  const wallClock = Date.UTC(year, month, day, hm.h, hm.m);
+  const check = new Date(wallClock);
+  if (check.getUTCMonth() !== month || check.getUTCDate() !== day) return null;
+
+  try {
+    // Second pass corrects the offset when the first guess crosses a DST change.
+    let utc = wallClock - timeZoneOffsetMs(new Date(wallClock), timeZone);
+    utc = wallClock - timeZoneOffsetMs(new Date(utc), timeZone);
+    return new Date(utc);
+  } catch {
+    return null;
+  }
+}
+
+/** "YYYY-MM-DD" for `instant` as seen in `timeZone`. */
+export function localDateInTimeZone(instant: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+}
+
+const WALL_CLOCK_ISO = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::00(?:\.0+)?)?$/;
+
 export function parseFollowUpScheduleInput(input: {
   scheduledAt?: string | Date | null;
   date?: string | null;
   time?: string | null;
   timeZone?: string;
 }): Date | null {
+  const timeZone = input.timeZone || "Asia/Kolkata";
   if (input.scheduledAt instanceof Date && !Number.isNaN(input.scheduledAt.getTime())) {
     return input.scheduledAt;
   }
   if (typeof input.scheduledAt === "string" && input.scheduledAt.trim()) {
+    // Without an offset, "2026-10-01T17:00" means 17:00 in the business timezone.
+    const wall = WALL_CLOCK_ISO.exec(input.scheduledAt.trim());
+    if (wall) return zonedDateTimeToUtc(wall[1], wall[2], timeZone);
     const d = new Date(input.scheduledAt);
     if (!Number.isNaN(d.getTime())) return d;
   }
   if (input.date) {
-    const time = input.time?.trim() || "09:00";
-    // Interpret as local wall time in business timezone via offset approximation:
-    // Construct as UTC first then adjust — for India (+05:30) callers often send ISO.
-    const isoGuess = `${input.date}T${time.length === 5 ? `${time}:00` : time}`;
-    const d = new Date(isoGuess);
-    if (!Number.isNaN(d.getTime())) return d;
+    return zonedDateTimeToUtc(input.date, input.time?.trim() || "09:00", timeZone);
   }
   return null;
+}
+
+/** Hour used when the customer gives a day ("kal") but no time. */
+export const DEFAULT_FOLLOW_UP_TIME = "11:00";
+
+/**
+ * Turn the date/time the AI extracted from a call into a future instant.
+ * Returns null when nothing usable was given (free text, past dates, bad values).
+ */
+export function parseCallFollowUpTime(input: {
+  date?: string | null;
+  time?: string | null;
+  timeZone: string;
+  now?: Date;
+}): Date | null {
+  const now = input.now ?? new Date();
+  const date = input.date?.trim();
+  if (!date) return null;
+
+  let at: Date | null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    at = zonedDateTimeToUtc(
+      date,
+      input.time?.trim() || DEFAULT_FOLLOW_UP_TIME,
+      input.timeZone,
+    );
+  } else if (/^\d{4}-\d{2}-\d{2}T/.test(date)) {
+    at = parseFollowUpScheduleInput({ scheduledAt: date, timeZone: input.timeZone });
+  } else {
+    at = null;
+  }
+
+  return at && at.getTime() > now.getTime() ? at : null;
 }

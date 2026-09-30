@@ -16,6 +16,7 @@ export type StartOutboundCallInput = {
     description: string | null;
     phone: string | null;
     address: string | null;
+    timezone?: string | null;
   };
   lead: {
     id: string;
@@ -42,8 +43,12 @@ export type ProviderCallSnapshot = {
   interest?: string;
   requirement?: string;
   followUpRequired?: boolean;
+  /** "YYYY-MM-DD" in the business timezone */
   followUpDate?: string;
+  /** "HH:mm" (24-hour) in the business timezone */
+  followUpTime?: string;
   customerSentiment?: string;
+  optOut?: boolean;
   raw: Record<string, unknown>;
 };
 

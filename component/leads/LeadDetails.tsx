@@ -4,7 +4,7 @@ import { useEffect, useId } from "react";
 import { CallHistory } from "./CallHistory";
 import { AISummary } from "./AISummary";
 import { LeadStatusBadge } from "./LeadStatusBadge";
-import { formatFollowUp, getDemoAiSummary, getDemoCallHistory } from "./mappers";
+import { formatFollowUp } from "./mappers";
 import { LEAD_STATUS_OPTIONS, type LeadRecord, type LeadStatusUi } from "./types";
 
 type Props = {
@@ -42,13 +42,6 @@ export function LeadDetails({
   }, [open, onClose]);
 
   if (!open || !lead) return null;
-
-  const history =
-    lead.callHistory.length > 0
-      ? lead.callHistory
-      : getDemoCallHistory(lead.name);
-  const usingDemoHistory = lead.callHistory.length === 0;
-  const summary = lead.aiSummary ?? getDemoAiSummary(lead.name);
 
   return (
     <div className="lm-drawer-root" role="presentation">
@@ -144,12 +137,12 @@ export function LeadDetails({
 
           <section className="lm-section">
             <h3>Call history</h3>
-            <CallHistory items={history} usingDemo={usingDemoHistory} />
+            <CallHistory items={lead.callHistory} />
           </section>
 
           <section className="lm-section">
             <h3>AI summary</h3>
-            <AISummary summary={summary} />
+            <AISummary summary={lead.aiSummary} />
           </section>
 
           <section className="lm-section">

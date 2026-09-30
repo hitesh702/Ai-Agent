@@ -7,10 +7,14 @@ import {
 } from "@/lib/telephony";
 import { ApiError } from "@/lib/api/http";
 
+const ACTIVE_CALL_GUARD_MS = 15 * 60 * 1000;
+
 export async function startOutboundCallForBusiness(input: {
   businessId: string;
   agentId: string;
   leadId: string;
+  sourceFollowUpId?: string;
+  campaignLeadId?: string;
 }) {
   if (!isTelephonyConfigured()) {
     throw new ApiError(
@@ -36,6 +40,23 @@ export async function startOutboundCallForBusiness(input: {
   if (!agent) throw new ApiError(404, "Agent not found");
   if (!lead) throw new ApiError(404, "Lead not found");
   if (!agent.active) throw new ApiError(400, "Agent is inactive");
+  if (lead.doNotCall) {
+    throw new ApiError(403, "This lead has opted out of calls");
+  }
+
+  const activeCall = await prisma.call.findFirst({
+    where: {
+      leadId: lead.id,
+      status: {
+        in: [CallStatus.QUEUED, CallStatus.RINGING, CallStatus.IN_PROGRESS],
+      },
+      createdAt: { gte: new Date(Date.now() - ACTIVE_CALL_GUARD_MS) },
+    },
+    select: { id: true },
+  });
+  if (activeCall) {
+    throw new ApiError(409, "This lead already has a call in progress");
+  }
 
   const provider = getTelephonyProvider();
 
@@ -46,6 +67,8 @@ export async function startOutboundCallForBusiness(input: {
       leadId: lead.id,
       status: CallStatus.QUEUED,
       provider: provider.name,
+      sourceFollowUpId: input.sourceFollowUpId ?? null,
+      campaignLeadId: input.campaignLeadId ?? null,
     },
   });
 

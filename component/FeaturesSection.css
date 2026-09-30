@@ -1,0 +1,147 @@
+.features {
+  width: 100%;
+  padding: 100px 24px;
+  background: #f8fafc;
+}
+
+.section-shell {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Heading */
+.section-heading {
+  max-width: 700px;
+  margin: 0 auto 60px;
+  text-align: center;
+}
+
+.section-eyebrow {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #06b6d4;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 42px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: #111827;
+}
+
+.section-heading > p:last-child {
+  margin: 20px auto 0;
+  max-width: 600px;
+  font-size: 17px;
+  line-height: 1.7;
+  color: #64748b;
+}
+
+/* Features Grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* Feature Card */
+.feature-card {
+  padding: 32px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  border-color: #bae6fd;
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.08);
+}
+
+/* Icon */
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 22px;
+
+  border-radius: 12px;
+  background: #ecfeff;
+  color: #0891b2;
+
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* Card Title */
+.feature-card h3 {
+  margin: 0 0 12px;
+  font-size: 19px;
+  line-height: 1.4;
+  font-weight: 650;
+  color: #111827;
+}
+
+/* Card Description */
+.feature-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #64748b;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .features {
+    padding: 80px 20px;
+  }
+
+  .section-heading h2 {
+    font-size: 36px;
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .features {
+    padding: 70px 18px;
+  }
+
+  .section-heading {
+    margin-bottom: 40px;
+  }
+
+  .section-heading h2 {
+    font-size: 30px;
+    letter-spacing: -0.5px;
+  }
+
+  .section-heading > p:last-child {
+    font-size: 15px;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .feature-card {
+    padding: 26px;
+  }
+}

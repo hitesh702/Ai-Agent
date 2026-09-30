@@ -1,3 +1,6 @@
+
+import "./FeaturesSection.css";
+
 const FEATURES = [
   {
     icon: "◉",
@@ -15,7 +18,7 @@ const FEATURES = [
     icon: "✓",
     title: "Lead Qualification",
     description:
-      "Identify interested, not interested and follow-up leads automatically.",
+      "Identify interested, not interested, and follow-up leads automatically.",
   },
   {
     icon: "≡",
@@ -39,11 +42,10 @@ const FEATURES = [
 
 export default function FeaturesSection() {
   return (
-    <section
-      className="features"
-      id="features"
-    >
+    <section className="features" id="features">
       <div className="section-shell">
+
+        {/* Section Heading */}
         <div className="section-heading">
           <p className="section-eyebrow">
             BUILT FOR CONVERSATIONS
@@ -54,11 +56,12 @@ export default function FeaturesSection() {
           </h2>
 
           <p>
-            Start with the essentials and grow your calling
-            workflow as your business grows.
+            Start with the essentials and grow your calling workflow
+            as your business grows.
           </p>
         </div>
 
+        {/* Features */}
         <div className="features-grid">
           {FEATURES.map((feature) => (
             <article
@@ -69,17 +72,17 @@ export default function FeaturesSection() {
                 {feature.icon}
               </div>
 
-              <h3>
-                {feature.title}
-              </h3>
+              <div className="feature-content">
+                <h3>{feature.title}</h3>
 
-              <p>
-                {feature.description}
-              </p>
+                <p>{feature.description}</p>
+              </div>
             </article>
           ))}
         </div>
+
       </div>
     </section>
   );
 }
+

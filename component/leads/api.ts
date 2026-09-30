@@ -106,6 +106,30 @@ export async function clearFollowUp(id: string): Promise<LeadRecord> {
   return mapApiLeadToRecord(data);
 }
 
+export type CsvImportSummary = {
+  confirmed: boolean;
+  totalRows: number;
+  readyToImport: number;
+  imported: number;
+  skipped: number;
+  invalid: number;
+  duplicates: number;
+  issues: { row: number; reason: string; kind: "invalid" | "duplicate" }[];
+  validLeads: { row: number; name: string; phone: string; email: string }[];
+};
+
+/** Without `confirm` the server only validates; nothing is saved. */
+export async function importLeadsCsv(
+  file: File,
+  confirm: boolean,
+): Promise<CsvImportSummary> {
+  const body = new FormData();
+  body.append("file", file);
+  if (confirm) body.append("confirm", "true");
+  const res = await fetch("/api/leads/import", { method: "POST", body });
+  return parseEnvelope<CsvImportSummary>(res);
+}
+
 /**
  * Calling provider abstraction.
  * Uses the existing /api/calls/start endpoint (TelephonyProvider → Vapi).

@@ -36,6 +36,7 @@ enum CallStatus {
 
 enum AppointmentStatus {
   SCHEDULED
+  CONFIRMED
   COMPLETED
   CANCELLED
   NO_SHOW
@@ -43,9 +44,11 @@ enum AppointmentStatus {
 
 enum CampaignStatus {
   DRAFT
-  ACTIVE
+  READY
+  RUNNING
   PAUSED
   COMPLETED
+  FAILED
 }
 
 enum CampaignLeadStatus {
@@ -103,6 +106,8 @@ model Business {
   /// Comma-separated ISO weekdays: 1=Mon … 7=Sun
   callingDays           String   @default("1,2,3,4,5,6")
   maxFollowUpAttempts   Int      @default(3)
+  /// Short lease serializing queued call starts so the concurrency limit holds
+  callQueueLockedUntil  DateTime?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -149,9 +154,10 @@ model Agent {
   updatedAt    DateTime      @updatedAt
 
   business  Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  calls     Call[]
-  campaigns Campaign[]
-  followUps FollowUp[]
+  calls        Call[]
+  campaigns    Campaign[]
+  followUps    FollowUp[]
+  appointments Appointment[]
 
   @@index([businessId])
   @@index([businessId, active])
@@ -172,6 +178,8 @@ model Lead {
   followUpAt       DateTime?
   followUpNote     String?
   followUpReminder Boolean    @default(false)
+  /// Customer asked not to be called again; blocks all outbound calls
+  doNotCall        Boolean    @default(false)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -199,11 +207,14 @@ model Call {
   transcript       String?
   summary          String?
   errorMessage     String?
+  endedReason      String?
   startedAt        DateTime?
   endedAt          DateTime?
   createdAt        DateTime   @default(now())
   /// Follow-up job that triggered this outbound call (if any)
   sourceFollowUpId String?
+  /// Campaign lead that triggered this outbound call (if any)
+  campaignLeadId   String?
 
   business Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   lead     Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -212,6 +223,7 @@ model Call {
   appointments Appointment[]
   followUpsAsSource FollowUp[] @relation("FollowUpSourceCall")
   sourceFollowUp    FollowUp?  @relation("FollowUpOutboundCall", fields: [sourceFollowUpId], references: [id], onDelete: SetNull)
+  campaignLead      CampaignLead? @relation(fields: [campaignLeadId], references: [id], onDelete: SetNull)
 
   @@unique([provider, providerCallId])
   @@index([businessId])
@@ -219,6 +231,7 @@ model Call {
   @@index([agentId])
   @@index([businessId, status])
   @@index([sourceFollowUpId])
+  @@index([campaignLeadId])
 }
 
 model CallResult {
@@ -230,9 +243,22 @@ model CallResult {
   followUpDate     DateTime?
   customerSentiment String?
   summary          String?
+  customerName     String?
+  course           String?
+  /// Objections the customer raised, as a JSON array of strings
+  objections       Json?
+  summaryStatus    CallSummaryStatus?
+  summaryUpdatedAt DateTime?
   createdAt        DateTime @default(now())
 
   call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+}
+
+enum CallSummaryStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  SKIPPED
 }
 
 model Appointment {
@@ -240,20 +266,30 @@ model Appointment {
   businessId String
   leadId     String
   callId     String?
+  /// AI agent that booked it, if booked during a call
+  agentId    String?
+  /// Start instant. Rows created before slot booking hold only the day, with `time` separate.
   date       DateTime
+  /// Start time "HH:mm" in the business timezone
   time       String?
+  endAt      DateTime?
   type       String?
   status     AppointmentStatus @default(SCHEDULED)
   notes      String?
+  /// "businessId|startISO" while the appointment holds its slot; cleared when cancelled
+  slotKey    String?           @unique
   createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @default(now()) @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   call     Call?    @relation(fields: [callId], references: [id], onDelete: SetNull)
+  agent    Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
 
   @@index([businessId])
   @@index([leadId])
   @@index([callId])
+  @@index([agentId])
   @@index([businessId, date])
 }
 
@@ -265,7 +301,21 @@ model Campaign {
   status     CampaignStatus @default(DRAFT)
   startTime  DateTime?
   endTime    DateTime?
+  /// Comma-separated ISO weekdays: 1=Mon … 7=Sun (timezone = Business.timezone)
+  callingDays        String   @default("1,2,3,4,5,6")
+  callingWindowStart String   @default("09:00")
+  callingWindowEnd   String   @default("20:00")
+  maxAttempts        Int      @default(3)
+  /// Wait before retrying a no-answer or voicemail call
+  retryDelayMinutes  Int      @default(60)
+  busyRetryMinutes   Int      @default(30)
+  failedRetryMinutes Int      @default(30)
+  retryOnVoicemail   Boolean  @default(true)
+  /// Create follow-up jobs when a customer asks to be called back
+  createFollowUps    Boolean  @default(true)
+  failureReason      String?
   createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @default(now()) @updatedAt
 
   business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   agent    Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -274,6 +324,7 @@ model Campaign {
   @@index([businessId])
   @@index([agentId])
   @@index([businessId, status])
+  @@index([status])
 }
 
 model CampaignLead {
@@ -284,9 +335,12 @@ model CampaignLead {
   attempts      Int                @default(0)
   lastAttemptAt DateTime?
   nextAttemptAt DateTime?
+  /// CONNECTED | BUSY | NO_ANSWER | VOICEMAIL | FAILED | REFUSED | OPTED_OUT | MAX_ATTEMPTS | INELIGIBLE
+  lastOutcome   String?
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  calls    Call[]
 
   @@unique([campaignId, leadId])
   @@index([campaignId])
