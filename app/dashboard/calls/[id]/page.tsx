@@ -14,6 +14,8 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
+const NOT_AVAILABLE = "Not available";
+
 function ProviderSummary({ text }: { text: string | null }) {
   if (!text) return null;
   return (
@@ -54,36 +56,24 @@ function AiSummary({ view }: { view: CallSummaryView }) {
       );
     case "ready":
       return (
-        <>
-          <dl className="ai-summary-grid">
-            <dt>Customer</dt>
-            <dd>{view.customerName ?? "Not mentioned"}</dd>
-            <dt>Interest</dt>
-            <dd>{view.interest ? view.interest.replaceAll("_", " ") : "Unclear"}</dd>
-            <dt>Course</dt>
-            <dd>{view.course ?? "Not mentioned"}</dd>
-            <dt>Requirement</dt>
-            <dd>{view.requirement ?? "Not mentioned"}</dd>
-            <dt>Objections</dt>
-            <dd>
-              {view.objections.length ? (
-                <ul>
-                  {view.objections.map((objection, i) => (
-                    <li key={i}>{objection}</li>
-                  ))}
-                </ul>
-              ) : (
-                "None"
-              )}
-            </dd>
-            <dt>Follow-up</dt>
-            <dd>{view.followUpRequired ? "Yes" : "No"}</dd>
-            <dt>Follow-up date</dt>
-            <dd>{view.followUpDate ?? "—"}</dd>
-            <dt>Summary</dt>
-            <dd>{view.summary}</dd>
-          </dl>
-        </>
+        <dl className="ai-summary-grid">
+          <dt>Customer Name</dt>
+          <dd>{view.customerName ?? NOT_AVAILABLE}</dd>
+          <dt>Interest</dt>
+          <dd>{view.interest ? view.interest.replaceAll("_", " ") : NOT_AVAILABLE}</dd>
+          <dt>Course</dt>
+          <dd>{view.course ?? NOT_AVAILABLE}</dd>
+          <dt>Requirement</dt>
+          <dd>{view.requirement ?? NOT_AVAILABLE}</dd>
+          <dt>Objections</dt>
+          <dd>{view.objections ?? NOT_AVAILABLE}</dd>
+          <dt>Follow-up Required</dt>
+          <dd>{view.followUpRequired ? "Yes" : "No"}</dd>
+          <dt>Follow-up Date</dt>
+          <dd>{view.followUpDate ?? NOT_AVAILABLE}</dd>
+          <dt>Summary</dt>
+          <dd>{view.summary || NOT_AVAILABLE}</dd>
+        </dl>
       );
   }
 }

@@ -3,10 +3,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import {
   APPOINTMENT_TYPES,
+  appointmentDateSchema,
+  appointmentTimeSchema,
+  appointmentTypeSchema,
   bookAppointment,
   describeSlot,
   findNextAvailableSlots,
   getAvailableSlots,
+  toSafeAppointment,
   type BookingSlot,
 } from "./booking";
 
@@ -48,7 +52,7 @@ export function buildAppointmentTools(input: { callId: string; serverUrl: string
     {
       type: "function",
       function: {
-        name: "get_available_slots",
+        name: "getAvailableSlots",
         description:
           "Get the real free appointment slots for a date. Call this before offering any appointment time.",
         parameters: {
@@ -72,14 +76,14 @@ export function buildAppointmentTools(input: { callId: string; serverUrl: string
     {
       type: "function",
       function: {
-        name: "book_appointment",
+        name: "createAppointment",
         description:
-          "Book one slot returned by get_available_slots, only after the customer clearly agreed to that exact date and time.",
+          "Book one slot returned by getAvailableSlots, only after the customer clearly agreed to that exact date and time.",
         parameters: {
           type: "object",
           properties: {
-            date: { type: "string", description: "YYYY-MM-DD exactly as returned by get_available_slots" },
-            time: { type: "string", description: "HH:MM exactly as returned by get_available_slots" },
+            date: { type: "string", description: "YYYY-MM-DD exactly as returned by getAvailableSlots" },
+            time: { type: "string", description: "HH:MM exactly as returned by getAvailableSlots" },
             appointmentType: { type: "string", enum: [...APPOINTMENT_TYPES] },
             customerAgreed: {
               type: "boolean",
@@ -98,12 +102,12 @@ export function appointmentAgentRules(today: string, timeZone: string): string {
   return `APPOINTMENT BOOKING (mandatory):
 - Today is ${today}, timezone ${timeZone}. Work out dates like "kal" or "Friday" from this.
 - Never suggest, guess or promise an appointment date or time yourself.
-- First ask what suits them (e.g. "Morning ya afternoon?" / "Which day and time works for you?").
-- Then call get_available_slots and offer at most 3 of the times it returns — nothing else.
-- If their time is not in the result, say it is not available and offer the returned alternatives.
-- Call book_appointment only after the customer clearly agrees to one exact offered slot, with customerAgreed true.
-- Never say the appointment is booked or confirmed until book_appointment returns BOOKED. Then read back its confirmation sentence.
-- If book_appointment returns NOT BOOKED, say so and offer the alternatives it gives.
+- First ask which day and time suits them, and the appointment type if it is not clear.
+- Then call getAvailableSlots and offer at most 3 of the slots it returns — nothing else.
+- If their time is not in the result, say it is not available and offer the returned slots.
+- Call createAppointment only after the customer clearly agrees to one exact offered slot, with customerAgreed true.
+- Never say the appointment is booked or confirmed unless createAppointment returns success: true. Then read back its "confirmation" sentence.
+- If createAppointment returns success: false, say its "error" and offer its "alternatives".
 - If a tool fails, apologise and say the team will call back to fix a time. Do not claim anything was booked.`;
 }
 
@@ -120,18 +124,21 @@ export type ToolCallContext = {
   agentId: string;
 };
 
+/** Vapi expects `result` (any string) or `error`; results are JSON so the AI gets structured data. */
 export type ToolResult = { result: string } | { error: string };
 
 const slotsArgs = z.object({
-  date: z.string(),
-  preference: z.string().optional().nullable(),
+  date: appointmentDateSchema,
+  preference: z.string().trim().max(20).optional().nullable(),
 });
 
-const bookArgs = z.object({
-  date: z.string(),
-  time: z.string(),
-  appointmentType: z.string().optional(),
-  customerAgreed: z.boolean().optional(),
+const createArgs = z.object({
+  date: appointmentDateSchema,
+  time: appointmentTimeSchema,
+  appointmentType: appointmentTypeSchema,
+  customerAgreed: z.literal(true, {
+    message: "Ask the customer to confirm one of the offered times first",
+  }),
 });
 
 function parseArgs(raw: unknown): unknown {
@@ -143,6 +150,14 @@ function parseArgs(raw: unknown): unknown {
   }
 }
 
+function reply(data: Record<string, unknown>): ToolResult {
+  return { result: JSON.stringify(data) };
+}
+
+function invalidArgs(error: z.ZodError): ToolResult {
+  return reply({ success: false, error: error.issues[0]?.message ?? "Invalid appointment details" });
+}
+
 async function businessTimeZone(businessId: string): Promise<string> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
@@ -151,8 +166,80 @@ async function businessTimeZone(businessId: string): Promise<string> {
   return business?.timezone || "Asia/Kolkata";
 }
 
-function listSlots(slots: BookingSlot[], timeZone: string): string {
-  return slots.map((s) => `${describeSlot(s, timeZone)} (date ${s.date}, time ${s.time})`).join("; ");
+function slotList(slots: BookingSlot[], timeZone: string) {
+  return slots.map((slot) => ({ ...slot, label: describeSlot(slot, timeZone) }));
+}
+
+async function availableSlotsTool(rawArgs: unknown, ctx: ToolCallContext, now: Date) {
+  const args = slotsArgs.safeParse(parseArgs(rawArgs));
+  if (!args.success) return invalidArgs(args.error);
+
+  const timeZone = await businessTimeZone(ctx.businessId);
+  const day = await getAvailableSlots(
+    ctx.businessId,
+    { date: args.data.date, preference: args.data.preference, limit: 3 },
+    now,
+  );
+  if (!day.ok) {
+    const next = await findNextAvailableSlots(ctx.businessId, { limit: 3 }, now);
+    return reply({ success: false, error: day.message, alternatives: slotList(next, timeZone) });
+  }
+
+  const slots = day.slots.map((time) => ({ date: day.date, time }));
+  const nextAvailable = slots.length
+    ? []
+    : await findNextAvailableSlots(
+        ctx.businessId,
+        { fromDate: day.date, preference: args.data.preference, limit: 3 },
+        now,
+      );
+  return reply({
+    success: true,
+    date: day.date,
+    timeZone,
+    ...(day.requestedTime ? { requestedTimeAvailable: day.requestedAvailable } : {}),
+    slots: slotList(slots, timeZone),
+    ...(slots.length ? {} : { nextAvailable: slotList(nextAvailable, timeZone) }),
+  });
+}
+
+async function createAppointmentTool(rawArgs: unknown, ctx: ToolCallContext, now: Date) {
+  const args = createArgs.safeParse(parseArgs(rawArgs));
+  if (!args.success) return invalidArgs(args.error);
+
+  const timeZone = await businessTimeZone(ctx.businessId);
+  const booking = await bookAppointment(
+    ctx.businessId,
+    {
+      leadId: ctx.leadId,
+      callId: ctx.callId,
+      agentId: ctx.agentId,
+      date: args.data.date,
+      time: args.data.time,
+      appointmentType: args.data.appointmentType,
+    },
+    now,
+  );
+
+  if (!booking.ok) {
+    return reply({
+      success: false,
+      error: booking.message,
+      alternatives: slotList(booking.alternatives, timeZone),
+    });
+  }
+
+  const saved = toSafeAppointment(booking.appointment, timeZone);
+  return reply({
+    success: true,
+    appointmentId: saved.id,
+    customerName: saved.customerName,
+    date: saved.date,
+    time: saved.time,
+    appointmentType: saved.appointmentType,
+    status: saved.status,
+    confirmation: booking.confirmation,
+  });
 }
 
 export async function runAppointmentTool(
@@ -162,81 +249,8 @@ export async function runAppointmentTool(
   now = new Date(),
 ): Promise<ToolResult> {
   try {
-    if (name === "get_available_slots") {
-      const args = slotsArgs.safeParse(parseArgs(rawArgs));
-      if (!args.success) return { error: "Missing date. Ask the customer which day suits them." };
-
-      const timeZone = await businessTimeZone(ctx.businessId);
-      const day = await getAvailableSlots(
-        ctx.businessId,
-        { date: args.data.date, preference: args.data.preference, limit: 3 },
-        now,
-      );
-      if (!day.ok) {
-        const next = await findNextAvailableSlots(ctx.businessId, { limit: 3 }, now);
-        return {
-          result: `${day.message} ${next.length ? `Next available: ${listSlots(next, timeZone)}. Offer only these.` : "No slots are available. Do not suggest any time."}`,
-        };
-      }
-
-      const requested =
-        day.requestedTime && !day.requestedAvailable
-          ? `The requested time ${day.requestedTime} is NOT available. `
-          : "";
-      if (day.slots.length) {
-        const slots = day.slots.map((time) => ({ date: day.date, time }));
-        return {
-          result: `${requested}AVAILABLE: ${listSlots(slots, timeZone)}. Offer only these times.`,
-        };
-      }
-
-      const next = await findNextAvailableSlots(
-        ctx.businessId,
-        { fromDate: day.date, preference: args.data.preference, limit: 3 },
-        now,
-      );
-      return {
-        result: next.length
-          ? `${requested}NO SLOTS on ${day.date}${args.data.preference ? ` for "${args.data.preference}"` : ""}. Next available: ${listSlots(next, timeZone)}. Offer only these times.`
-          : "NO SLOTS available in the next two weeks. Tell the customer the team will call back to schedule. Do not suggest any time.",
-      };
-    }
-
-    if (name === "book_appointment") {
-      const args = bookArgs.safeParse(parseArgs(rawArgs));
-      if (!args.success) {
-        return { result: "NOT BOOKED: date and time are required. Offer the available slots again." };
-      }
-      if (args.data.customerAgreed !== true) {
-        return {
-          result: "NOT BOOKED: ask the customer to confirm one of the offered times first.",
-        };
-      }
-
-      const timeZone = await businessTimeZone(ctx.businessId);
-      const booking = await bookAppointment(
-        ctx.businessId,
-        {
-          leadId: ctx.leadId,
-          callId: ctx.callId,
-          agentId: ctx.agentId,
-          date: args.data.date,
-          time: args.data.time,
-          type: args.data.appointmentType || "counselling",
-          customerAgreed: true,
-        },
-        now,
-      );
-
-      if (booking.ok) {
-        return { result: `BOOKED. Tell the customer exactly: "${booking.confirmation}"` };
-      }
-      const alternatives = booking.alternatives.length
-        ? ` Next available: ${listSlots(booking.alternatives, timeZone)}. Offer only these.`
-        : " No other slots are free soon; say the team will call back to schedule.";
-      return { result: `NOT BOOKED: ${booking.message}${alternatives}` };
-    }
-
+    if (name === "getAvailableSlots") return await availableSlotsTool(rawArgs, ctx, now);
+    if (name === "createAppointment") return await createAppointmentTool(rawArgs, ctx, now);
     return { error: `Unknown tool ${name}` };
   } catch (error) {
     console.error("[appointments] tool call failed", {
@@ -246,7 +260,7 @@ export async function runAppointmentTool(
     });
     return {
       error:
-        "NOT BOOKED: the booking system had a problem. Do not say anything was booked; tell the customer the team will call back to confirm a time.",
+        "The booking system had a problem and nothing was booked. Tell the customer the team will call back to confirm a time.",
     };
   }
 }

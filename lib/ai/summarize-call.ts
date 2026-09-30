@@ -22,21 +22,17 @@ const STALE_PENDING_MS = 5 * 60_000;
 
 const FOLLOW_UP_DATE = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?$/;
 
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .nullable()
-    .transform((value) => value || null);
+/** Empty string means "not mentioned in the call". */
+const text = (max: number) => z.string().trim().max(max);
 
 export const callSummarySchema = z
   .object({
-    customerName: optionalText(100),
-    interest: z.enum(LEAD_INTEREST_OUTCOMES).nullable(),
-    course: optionalText(120),
-    requirement: optionalText(500),
-    objections: z.array(z.string().trim().min(1).max(300)).max(20),
+    customerName: text(100),
+    // Restricted to the lead outcomes because campaigns and lead status rely on them.
+    interest: z.union([z.enum(LEAD_INTEREST_OUTCOMES), z.literal("")]),
+    course: text(120),
+    requirement: text(500),
+    objections: text(1000),
     followUpRequired: z.boolean(),
     followUpDate: z
       .string()
@@ -50,10 +46,10 @@ export const callSummarySchema = z
     summary: z.string().trim().min(1).max(2000),
   })
   .strict()
-  .transform((value) => ({
-    ...value,
-    followUpDate: value.followUpRequired ? value.followUpDate : null,
-  }));
+  .refine((value) => value.followUpRequired || value.followUpDate === null, {
+    path: ["followUpDate"],
+    message: "followUpDate must be null when followUpRequired is false",
+  });
 
 export type CallSummary = z.infer<typeof callSummarySchema>;
 
@@ -72,35 +68,35 @@ export const CALL_SUMMARY_JSON_SCHEMA = {
     "summary",
   ],
   properties: {
-    customerName: { type: ["string", "null"] },
-    interest: { type: ["string", "null"], enum: [...LEAD_INTEREST_OUTCOMES, null] },
-    course: { type: ["string", "null"] },
-    requirement: { type: ["string", "null"] },
-    objections: { type: "array", items: { type: "string" } },
+    customerName: { type: "string" },
+    interest: { type: "string", enum: [...LEAD_INTEREST_OUTCOMES, ""] },
+    course: { type: "string" },
+    requirement: { type: "string" },
+    objections: { type: "string" },
     followUpRequired: { type: "boolean" },
     followUpDate: { type: ["string", "null"] },
     summary: { type: "string" },
   },
 } as const;
 
-export const CALL_SUMMARY_SYSTEM_PROMPT = `You are an AI call-summary assistant for CallAI.
+export const CALL_SUMMARY_SYSTEM_PROMPT = `You are a call-analysis assistant for CallAI.
 
-Analyze the provided call transcript and return structured JSON.
-
-Use ONLY information explicitly supported by the transcript.
+Analyze the completed customer conversation and extract only information supported by the transcript.
 Never invent customer information.
-If information is unknown, return null or an empty array where appropriate.
+If information is unavailable, use an empty string.
+Set followUpRequired to true only when the conversation indicates that follow-up is required.
+If followUpRequired is false, followUpDate must be null.
 
 Fields:
-- customerName: the customer's name only if it is said in the call, otherwise null.
-- interest: exactly one of INTERESTED, NOT_INTERESTED, FOLLOW_UP, NO_RESPONSE, or null if the transcript does not make it clear.
+- customerName: the customer's name only if it is said in the call, otherwise "".
+- interest: exactly one of INTERESTED, NOT_INTERESTED, FOLLOW_UP, NO_RESPONSE, or "" if the transcript does not make it clear.
   INTERESTED = the customer clearly said they are interested (e.g. wants a demo, counselling or admission).
   NOT_INTERESTED = the customer clearly refused or said they are not interested.
   FOLLOW_UP = the customer asked to be contacted later or needs more information before deciding.
   NO_RESPONSE = there was no meaningful conversation with the customer.
-- course: the course mentioned (e.g. "JEE Advanced"), otherwise null.
-- requirement: what the customer needs (e.g. "Wants weekend batch"), otherwise null.
-- objections: concerns the customer actually raised (e.g. "Price is too high"). Use [] if none.
+- course: the course mentioned (e.g. "JEE Advanced"), otherwise "".
+- requirement: what the customer needs (e.g. "Wants weekend batch"), otherwise "".
+- objections: concerns the customer actually raised, separated by "; " (e.g. "Price is too high; Centre is far"), otherwise "".
 - followUpRequired: true only if the customer asked to be called or contacted again.
 - followUpDate: only when a date is explicitly stated or can be safely determined from the conversation
   (e.g. "kal" = tomorrow, using today's date given below). Format YYYY-MM-DD, or YYYY-MM-DDTHH:mm
@@ -406,11 +402,11 @@ export async function summarizeCompletedCall(
     const saved = await prisma.callResult.updateMany({
       where: { callId, summaryStatus: CallSummaryStatus.PENDING },
       data: {
-        customerName: summary.customerName,
-        interest: summary.interest,
-        course: summary.course,
-        requirement: summary.requirement,
-        objections: summary.objections,
+        customerName: summary.customerName || null,
+        interest: summary.interest || null,
+        course: summary.course || null,
+        requirement: summary.requirement || null,
+        objections: summary.objections || Prisma.DbNull,
         followUpRequired: summary.followUpRequired,
         followUpDate: summary.followUpDate
           ? followUpInstant(summary.followUpDate, timeZone)
@@ -457,13 +453,18 @@ export type CallSummaryView =
       interest: string | null;
       course: string | null;
       requirement: string | null;
-      objections: string[];
+      objections: string | null;
       followUpRequired: boolean;
       followUpDate: string | null;
       summary: string;
     };
 
-const storedObjections = z.array(z.string()).catch([]);
+/** Objections are saved as text; summaries from before that change hold a JSON array. */
+const storedObjections = z
+  .union([z.string(), z.array(z.string()).transform((items) => items.join("; "))])
+  .nullable()
+  .catch(null)
+  .transform((value) => value?.trim() || null);
 
 function formatFollowUpDate(date: Date, timeZone: string): string {
   const day = localDateInTimeZone(date, timeZone);
@@ -506,7 +507,7 @@ export async function getCallSummaryForBusiness(
         interest: result.interest,
         course: result.course,
         requirement: result.requirement,
-        objections: storedObjections.parse(result.objections ?? []),
+        objections: storedObjections.parse(result.objections ?? null),
         followUpRequired: result.followUpRequired,
         followUpDate: result.followUpDate
           ? formatFollowUpDate(result.followUpDate, call.business.timezone || "Asia/Kolkata")

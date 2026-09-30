@@ -30,7 +30,7 @@ const VALID = {
   interest: "INTERESTED",
   course: "JEE Advanced",
   requirement: "Wants weekend batch",
-  objections: ["Wants to compare fees"],
+  objections: "Wants to compare fees",
   followUpRequired: true,
   followUpDate: "2026-10-02T17:00",
   summary:
@@ -83,41 +83,48 @@ describe("generateCallSummary (mocked AI)", () => {
     assert.match(sent, /\[email\]/);
   });
 
-  it("2. missing customer name returns null (empty text is treated as missing)", async () => {
-    for (const customerName of [null, "", "   "]) {
+  it("2. unavailable information comes back as an empty string", async () => {
+    for (const customerName of ["", "   "]) {
       const result = await generateCallSummary(TRANSCRIPT, {
         complete: mockAi({ ...VALID, customerName }).complete,
       });
       assert.equal(result.ok, true);
-      if (result.ok) assert.equal(result.summary.customerName, null);
+      if (result.ok) assert.equal(result.summary.customerName, "");
     }
   });
 
-  it("3. missing course returns null", async () => {
+  it("3. empty course, requirement, objections and interest are accepted", async () => {
     const result = await generateCallSummary(TRANSCRIPT, {
-      complete: mockAi({ ...VALID, course: null }).complete,
-    });
-    assert.equal(result.ok, true);
-    if (result.ok) assert.equal(result.summary.course, null);
-  });
-
-  it("4. no objections returns []", async () => {
-    const result = await generateCallSummary(TRANSCRIPT, {
-      complete: mockAi({ ...VALID, objections: [] }).complete,
-    });
-    assert.equal(result.ok, true);
-    if (result.ok) assert.deepEqual(result.summary.objections, []);
-  });
-
-  it("5. no follow-up returns false/null, even if the AI added a date", async () => {
-    const result = await generateCallSummary(TRANSCRIPT, {
-      complete: mockAi({ ...VALID, followUpRequired: false, followUpDate: "2026-10-02" })
+      complete: mockAi({ ...VALID, course: "", requirement: "", objections: "", interest: "" })
         .complete,
     });
     assert.equal(result.ok, true);
     if (result.ok) {
-      assert.equal(result.summary.followUpRequired, false);
-      assert.equal(result.summary.followUpDate, null);
+      assert.equal(result.summary.course, "");
+      assert.equal(result.summary.objections, "");
+      assert.equal(result.summary.interest, "");
+    }
+  });
+
+  it("4. followUpRequired = false requires followUpDate = null", async () => {
+    const ok = await generateCallSummary(TRANSCRIPT, {
+      complete: mockAi({ ...VALID, followUpRequired: false, followUpDate: null }).complete,
+    });
+    assert.equal(ok.ok, true);
+
+    const rejected = await generateCallSummary(TRANSCRIPT, {
+      complete: mockAi({ ...VALID, followUpRequired: false, followUpDate: "2026-10-02" })
+        .complete,
+    });
+    assert.deepEqual(rejected, { ok: false, reason: "invalid_schema" });
+  });
+
+  it("5. missing fields are rejected safely", async () => {
+    for (const field of Object.keys(VALID)) {
+      const output: Record<string, unknown> = { ...VALID };
+      delete output[field];
+      const result = await generateCallSummary(TRANSCRIPT, { complete: mockAi(output).complete });
+      assert.deepEqual(result, { ok: false, reason: "invalid_schema" }, field);
     }
   });
 
@@ -150,7 +157,9 @@ describe("generateCallSummary (mocked AI)", () => {
   it("8. invalid AI output is rejected", async () => {
     const badOutputs = [
       { ...VALID, interest: "MAYBE" },
-      { ...VALID, objections: "Price is too high" },
+      { ...VALID, objections: ["Price is too high"] },
+      { ...VALID, customerName: null },
+      { ...VALID, course: 42 },
       { ...VALID, followUpRequired: "yes" },
       { ...VALID, summary: "" },
       { ...VALID, extra: "not allowed" },
@@ -270,14 +279,91 @@ describe("summarizeCompletedCall (database)", () => {
     assert.equal(saved.interest, "INTERESTED");
     assert.equal(saved.course, "JEE Advanced");
     assert.equal(saved.requirement, "Wants weekend batch");
-    assert.deepEqual(saved.objections, ["Wants to compare fees"]);
+    assert.equal(saved.objections, "Wants to compare fees");
     assert.equal(saved.followUpRequired, true);
     assert.equal(saved.followUpDate?.toISOString(), "2026-10-02T11:30:00.000Z");
     assert.equal(saved.summary, VALID.summary);
 
     const view = await getCallSummaryForBusiness(businessId, call.id);
     assert.equal(view?.state, "ready");
-    if (view?.state === "ready") assert.equal(view.followUpDate, "2026-10-02 17:00");
+    if (view?.state === "ready") {
+      assert.equal(view.followUpDate, "2026-10-02 17:00");
+      assert.equal(view.objections, "Wants to compare fees");
+    }
+  });
+
+  it("empty AI fields are stored as missing and shown as unavailable", async () => {
+    const call = await createCall();
+    const empty = {
+      ...VALID,
+      customerName: "",
+      interest: "",
+      course: "",
+      requirement: "",
+      objections: "",
+      followUpRequired: false,
+      followUpDate: null,
+    };
+    assert.equal(
+      await summarizeCompletedCall(call.id, { complete: mockAi(empty).complete }),
+      "completed",
+    );
+    const saved = await prisma.callResult.findUniqueOrThrow({ where: { callId: call.id } });
+    assert.equal(saved.customerName, null);
+    assert.equal(saved.interest, null);
+    assert.equal(saved.objections, null);
+    assert.equal(saved.followUpDate, null);
+
+    const view = await getCallSummaryForBusiness(businessId, call.id);
+    assert.ok(view?.state === "ready");
+    if (view?.state === "ready") {
+      assert.equal(view.customerName, null);
+      assert.equal(view.objections, null);
+      assert.equal(view.followUpRequired, false);
+    }
+  });
+
+  it("older summaries with an objections array are still readable", async () => {
+    const call = await createCall();
+    await prisma.callResult.create({
+      data: {
+        callId: call.id,
+        summary: "Old summary",
+        objections: ["Fees", "Distance"],
+        summaryStatus: CallSummaryStatus.COMPLETED,
+      },
+    });
+    const view = await getCallSummaryForBusiness(businessId, call.id);
+    assert.ok(view?.state === "ready");
+    if (view?.state === "ready") assert.equal(view.objections, "Fees; Distance");
+  });
+
+  it("AI API failure: the call stays completed and the summary can be retried", async () => {
+    const call = await createCall();
+    const failing: SummaryCompleter = async () => {
+      throw new Error("OpenAI request failed with status 503");
+    };
+    assert.equal(await summarizeCompletedCall(call.id, { complete: failing }), "failed");
+
+    const saved = await prisma.callResult.findUniqueOrThrow({ where: { callId: call.id } });
+    assert.equal(saved.summaryStatus, CallSummaryStatus.FAILED);
+    assert.equal(saved.summary, null);
+    assert.equal((await prisma.call.findUniqueOrThrow({ where: { id: call.id } })).status, "ENDED");
+
+    assert.equal(
+      await summarizeCompletedCall(call.id, { complete: mockAi(VALID).complete }),
+      "completed",
+    );
+  });
+
+  it("invalid AI output (schema) is never saved", async () => {
+    const call = await createCall();
+    const bad = { ...VALID, followUpRequired: false, customerName: "Should not be saved" };
+    assert.equal(await summarizeCompletedCall(call.id, { complete: mockAi(bad).complete }), "failed");
+    const saved = await prisma.callResult.findUniqueOrThrow({ where: { callId: call.id } });
+    assert.equal(saved.summaryStatus, CallSummaryStatus.FAILED);
+    assert.equal(saved.customerName, null);
+    assert.equal(saved.summary, null);
   });
 
   it("11. an ended call without a transcript is skipped and the AI is not called", async () => {
@@ -349,7 +435,7 @@ describe("summarizeCompletedCall (database)", () => {
     assert.equal(saved.requirement, "Wants weekend batch");
   });
 
-  it("invalid AI output is not saved; the call stays intact and can be retried", async () => {
+  it("malformed JSON is not saved; the call stays intact and can be retried", async () => {
     const call = await createCall();
     assert.equal(
       await summarizeCompletedCall(call.id, { complete: mockAi("not json").complete }),

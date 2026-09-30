@@ -68,13 +68,10 @@ export const bookAppointmentSchema = z.object({
   leadId: z.string().trim().min(1, "Choose a lead"),
   date: appointmentDateSchema,
   time: appointmentTimeSchema,
-  type: appointmentTypeSchema.default("counselling"),
+  appointmentType: appointmentTypeSchema,
   notes: z.string().trim().max(1000).optional().nullable(),
   callId: z.string().trim().min(1).optional().nullable(),
   agentId: z.string().trim().min(1).optional().nullable(),
-  customerAgreed: z.literal(true, {
-    message: "Only book after the customer has agreed to this time",
-  }),
 });
 
 export type BookAppointmentInput = z.input<typeof bookAppointmentSchema>;
@@ -445,7 +442,7 @@ export async function bookAppointment(
           date: start,
           time: input.time,
           endAt: end,
-          type: input.type,
+          type: input.appointmentType,
           notes: input.notes || null,
           status: AppointmentStatus.SCHEDULED,
           slotKey: key,
@@ -647,6 +644,36 @@ export function toAppointmentRow(
     statusValue: appointment.status,
   };
 }
+
+/** Appointment data that is safe to return from APIs and to the AI (no internal fields). */
+export function toSafeAppointment(
+  appointment: {
+    id: string;
+    date: Date;
+    time: string | null;
+    endAt: Date | null;
+    type: string | null;
+    status: AppointmentStatus;
+    lead: { name: string };
+  },
+  timeZone: string,
+) {
+  const when = formatAppointmentWhen(appointment, timeZone);
+  return {
+    id: appointment.id,
+    customerName: appointment.lead.name,
+    date: appointment.endAt
+      ? localDateInTimeZone(appointment.date, timeZone)
+      : appointment.date.toISOString().slice(0, 10),
+    time: appointment.time,
+    displayDate: when.date,
+    displayTime: when.time,
+    appointmentType: appointment.type,
+    status: appointment.status,
+  };
+}
+
+export type SafeAppointment = ReturnType<typeof toSafeAppointment>;
 
 /** Spoken/displayed confirmation, built only from the saved appointment. */
 export function formatAppointmentConfirmation(

@@ -32,14 +32,16 @@ export async function createAppointmentAction(
   formData: FormData,
 ): Promise<FormState> {
   const business = await requireOwnedBusiness();
+  if (formData.get("customerAgreed") !== "on") {
+    return { error: "Only book after the customer has agreed to this time." };
+  }
 
   const result = await bookAppointment(business.id, {
     leadId: formData.get("leadId"),
     date: formData.get("date"),
     time: formData.get("time"),
-    type: formData.get("type") || undefined,
+    appointmentType: formData.get("type"),
     notes: formData.get("notes") || undefined,
-    customerAgreed: formData.get("customerAgreed") === "on" ? true : undefined,
   });
 
   if (!result.ok) {

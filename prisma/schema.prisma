@@ -245,7 +245,7 @@ model CallResult {
   summary          String?
   customerName     String?
   course           String?
-  /// Objections the customer raised, as a JSON array of strings
+  /// Objections the customer raised, as a JSON string ("; "-separated). Older rows may hold an array.
   objections       Json?
   summaryStatus    CallSummaryStatus?
   summaryUpdatedAt DateTime?

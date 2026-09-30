@@ -25,6 +25,7 @@ import {
   SLOT_TAKEN_MESSAGE,
   statusLabel,
   toAppointmentRow,
+  toSafeAppointment,
   updateAppointmentStatus,
 } from "./booking";
 
@@ -46,7 +47,7 @@ let savedAuthSecret: string | undefined;
 function book(overrides: Record<string, unknown> = {}, now = NOW, business = businessId) {
   return bookAppointment(
     business,
-    { leadId: leadA, type: "counselling", customerAgreed: true, ...overrides },
+    { leadId: leadA, appointmentType: "counselling", ...overrides },
     now,
   );
 }
@@ -68,7 +69,7 @@ async function createCall(leadId: string, createdAt = new Date(NOW.getTime() - 6
 function toolPayload(
   call: { id: string; providerCallId: string | null },
   name: string,
-  args: Record<string, unknown>,
+  args: unknown,
   toolCallId = "tc-1",
 ) {
   return {
@@ -83,7 +84,7 @@ function toolPayload(
 async function runTool(
   call: { id: string; providerCallId: string | null },
   name: string,
-  args: Record<string, unknown>,
+  args: unknown,
 ) {
   const response = await handleAppointmentToolWebhook(
     toolPayload(call, name, args),
@@ -93,6 +94,20 @@ async function runTool(
   assert.equal(response.status, 200);
   if (response.status !== 200) throw new Error("unreachable");
   return response.body.results[0];
+}
+
+type ToolData = {
+  success: boolean;
+  error?: string;
+  slots?: Array<{ date: string; time: string; label: string }>;
+  alternatives?: Array<{ date: string; time: string }>;
+  [key: string]: unknown;
+};
+
+/** Parsed JSON `result` of a tool call (fails the test if the tool returned `error`). */
+function toolData(outcome: { result: string } | { error: string }): ToolData {
+  assert.ok("result" in outcome, "error" in outcome ? outcome.error : "");
+  return JSON.parse((outcome as { result: string }).result);
 }
 
 function countAt(business: string, iso: string) {
@@ -230,7 +245,7 @@ describe("appointment booking", () => {
   });
 
   it("6. the confirmation is built from the saved appointment", async () => {
-    const result = await book({ date: "2026-10-06", time: "12:30", type: "Demo" });
+    const result = await book({ date: "2026-10-06", time: "12:30", appointmentType: "Demo" });
     assert.ok(result.ok);
     if (!result.ok) return;
     assert.equal(
@@ -339,11 +354,20 @@ describe("appointment booking", () => {
     const wrongCall = await book({ callId: callForB.id, date: "2026-10-01", time: "10:00" });
     assert.ok(!wrongCall.ok && wrongCall.code === "invalid_call");
 
-    const noAgreement = await book({ customerAgreed: undefined, date: "2026-10-01", time: "10:00" });
-    assert.ok(!noAgreement.ok && noAgreement.code === "invalid_input");
+    for (const appointmentType of [undefined, "", "   "]) {
+      const noType = await book({ appointmentType, date: "2026-10-01", time: "10:00" });
+      assert.ok(!noType.ok && noType.code === "invalid_input");
+    }
 
-    const badTime = await book({ date: "2026-10-01", time: "3pm" });
-    assert.ok(!badTime.ok && badTime.code === "invalid_input");
+    for (const date of ["2026-02-31", "tomorrow", "02/10/2026", ""]) {
+      const badDate = await book({ date, time: "10:00" });
+      assert.ok(!badDate.ok && badDate.code === "invalid_input", `date ${date}`);
+    }
+
+    for (const time of ["3pm", "25:00", "10:60", "1000", ""]) {
+      const badTime = await book({ date: "2026-10-01", time });
+      assert.ok(!badTime.ok && badTime.code === "invalid_input", `time ${time}`);
+    }
 
     const day = await getAvailableSlots(businessId, { date: "2026-10-01" }, NOW);
     assert.ok(day.ok);
@@ -352,7 +376,7 @@ describe("appointment booking", () => {
 
   it("13. unauthorized tool calls are rejected", async () => {
     const call = await createCall(leadA);
-    const payload = toolPayload(call, "book_appointment", {
+    const payload = toolPayload(call, "createAppointment", {
       date: "2026-10-01",
       time: "10:00",
       appointmentType: "counselling",
@@ -368,7 +392,7 @@ describe("appointment booking", () => {
 
     const stale = await createCall(leadA, new Date(NOW.getTime() - 3 * 60 * 60_000));
     const late = await handleAppointmentToolWebhook(
-      toolPayload(stale, "book_appointment", { date: "2026-10-01", time: "10:00", customerAgreed: true }),
+      toolPayload(stale, "createAppointment", { date: "2026-10-01", time: "10:00", customerAgreed: true }),
       appointmentToolToken(stale.id),
       NOW,
     );
@@ -403,58 +427,101 @@ describe("appointment booking", () => {
   it("15. the AI cannot invent slots — only real free slots can be booked", async () => {
     const call = await createCall(leadA);
 
-    const offer = await runTool(call, "get_available_slots", { date: "2026-10-10", preference: "afternoon" });
-    assert.ok("result" in offer);
-    if ("result" in offer) {
-      assert.match(offer.result, /AVAILABLE/);
-      assert.match(offer.result, /time 12:00/);
-      assert.match(offer.result, /time 12:30/);
-      assert.doesNotMatch(offer.result, /time 10:00/);
-    }
+    const offer = toolData(
+      await runTool(call, "getAvailableSlots", { date: "2026-10-10", preference: "afternoon" }),
+    );
+    assert.equal(offer.success, true);
+    assert.deepEqual(offer.slots?.map((s) => s.time), ["12:00", "12:30"]);
+    assert.equal(offer.slots?.[0].label, "Saturday, October 10 at 12:00 PM");
 
     for (const time of ["12:15", "16:00"]) {
-      const invented = await runTool(call, "book_appointment", {
-        date: "2026-10-10",
-        time,
-        appointmentType: "counselling",
-        customerAgreed: true,
-      });
-      assert.ok("result" in invented && invented.result.startsWith("NOT BOOKED"), time);
+      const invented = toolData(
+        await runTool(call, "createAppointment", {
+          date: "2026-10-10",
+          time,
+          appointmentType: "counselling",
+          customerAgreed: true,
+        }),
+      );
+      assert.equal(invented.success, false, time);
     }
     assert.equal(await prisma.appointment.count({ where: { callId: call.id } }), 0);
 
-    const booked = await runTool(call, "book_appointment", {
-      date: "2026-10-10",
-      time: "12:00",
-      appointmentType: "counselling",
-      customerAgreed: true,
-    });
-    assert.ok("result" in booked && booked.result.startsWith("BOOKED"));
+    const booked = toolData(
+      await runTool(call, "createAppointment", {
+        date: "2026-10-10",
+        time: "12:00",
+        appointmentType: "counselling",
+        customerAgreed: true,
+      }),
+    );
+    assert.equal(booked.success, true);
 
     const otherCall = await createCall(leadB);
-    const taken = await runTool(otherCall, "book_appointment", {
-      date: "2026-10-10",
-      time: "12:00",
-      appointmentType: "counselling",
-      customerAgreed: true,
-    });
-    assert.ok("result" in taken);
-    if ("result" in taken) {
-      assert.match(taken.result, /^NOT BOOKED: That time is no longer available/);
-      assert.match(taken.result, /Next available: .*time 12:30/);
+    const taken = toolData(
+      await runTool(otherCall, "createAppointment", {
+        date: "2026-10-10",
+        time: "12:00",
+        appointmentType: "counselling",
+        customerAgreed: true,
+      }),
+    );
+    assert.equal(taken.success, false);
+    assert.equal(taken.error, SLOT_TAKEN_MESSAGE);
+    assert.ok(taken.alternatives?.some((s) => s.date === "2026-10-10" && s.time === "12:30"));
+  });
+
+  it("invalid AI tool arguments are rejected by Zod and injected ids are ignored", async () => {
+    const call = await createCall(leadA);
+    const invalid: unknown[] = [
+      { date: "tomorrow", time: "11:00", appointmentType: "demo", customerAgreed: true },
+      { date: "2026-10-14", time: "6pm", appointmentType: "demo", customerAgreed: true },
+      { date: "2026-10-14", time: "11:00", appointmentType: "", customerAgreed: true },
+      { date: "2026-10-14", time: "11:00", appointmentType: "party", customerAgreed: true },
+      { date: "2026-10-14", time: "11:00", appointmentType: "demo", customerAgreed: "yes" },
+      { date: "2026-10-14", time: "11:00", appointmentType: "demo" },
+      {},
+      "not json",
+    ];
+    for (const args of invalid) {
+      const data = toolData(await runTool(call, "createAppointment", args));
+      assert.equal(data.success, false, JSON.stringify(args));
+      assert.ok(data.error);
     }
+    assert.equal(toolData(await runTool(call, "getAvailableSlots", { date: "next week" })).success, false);
+    assert.equal(await prisma.appointment.count({ where: { callId: call.id } }), 0);
+
+    const booked = toolData(
+      await runTool(call, "createAppointment", {
+        date: "2026-10-14",
+        time: "11:00",
+        appointmentType: "demo",
+        customerAgreed: true,
+        leadId: leadB,
+        businessId: otherBusinessId,
+        agentId: "someone-else",
+      }),
+    );
+    assert.equal(booked.success, true);
+    const saved = await prisma.appointment.findFirstOrThrow({ where: { callId: call.id } });
+    assert.equal(saved.businessId, businessId);
+    assert.equal(saved.leadId, leadA);
+    assert.equal(saved.agentId, agentId);
   });
 
   it("16. the AI cannot confirm before the database saves the booking", async () => {
     const call = await createCall(leadA);
 
-    const notAgreed = await runTool(call, "book_appointment", {
-      date: "2026-10-01",
-      time: "11:00",
-      appointmentType: "demo",
-      customerAgreed: false,
-    });
-    assert.ok("result" in notAgreed && notAgreed.result.startsWith("NOT BOOKED"));
+    const notAgreed = toolData(
+      await runTool(call, "createAppointment", {
+        date: "2026-10-01",
+        time: "11:00",
+        appointmentType: "demo",
+        customerAgreed: false,
+      }),
+    );
+    assert.equal(notAgreed.success, false);
+    assert.match(notAgreed.error ?? "", /confirm one of the offered times/);
 
     const client = prisma as unknown as Record<string, unknown>;
     const original = client.$transaction;
@@ -463,7 +530,7 @@ describe("appointment booking", () => {
     };
     let failed;
     try {
-      failed = await runTool(call, "book_appointment", {
+      failed = await runTool(call, "createAppointment", {
         date: "2026-10-01",
         time: "11:00",
         appointmentType: "demo",
@@ -473,29 +540,32 @@ describe("appointment booking", () => {
       client.$transaction = original;
     }
     assert.ok("error" in failed);
-    if ("error" in failed) assert.match(failed.error, /^NOT BOOKED/);
+    if ("error" in failed) assert.match(failed.error, /nothing was booked/);
     assert.equal(await prisma.appointment.count({ where: { callId: call.id } }), 0);
 
-    const booked = await runTool(call, "book_appointment", {
+    const booked = toolData(
+      await runTool(call, "createAppointment", {
+        date: "2026-10-01",
+        time: "11:00",
+        appointmentType: "demo",
+        customerAgreed: true,
+      }),
+    );
+    const saved = await prisma.appointment.findFirstOrThrow({ where: { callId: call.id } });
+    assert.deepEqual(booked, {
+      success: true,
+      appointmentId: saved.id,
+      customerName: "Rahul",
       date: "2026-10-01",
       time: "11:00",
       appointmentType: "demo",
-      customerAgreed: true,
+      status: "SCHEDULED",
+      confirmation: "Rahul, your demo appointment is confirmed for Thursday, October 1 at 11:00 AM.",
     });
-    assert.ok("result" in booked);
-    const saved = await prisma.appointment.findFirstOrThrow({ where: { callId: call.id } });
-    assert.equal(saved.agentId, agentId);
-    assert.equal(saved.leadId, leadA);
-    if ("result" in booked) {
-      assert.equal(
-        booked.result,
-        `BOOKED. Tell the customer exactly: "${formatAppointmentConfirmation({ ...saved, lead: { name: "Rahul" } }, "Asia/Kolkata")}"`,
-      );
-    }
 
     const rules = appointmentAgentRules("2026-09-29 (Tuesday)", "Asia/Kolkata");
     assert.match(rules, /Never suggest, guess or promise an appointment date or time yourself/);
-    assert.match(rules, /Never say the appointment is booked or confirmed until book_appointment returns BOOKED/);
+    assert.match(rules, /Never say the appointment is booked or confirmed unless createAppointment returns success: true/);
   });
 
   it("17. duplicate requests, tool calls and webhooks create only one appointment", async () => {
@@ -521,7 +591,7 @@ describe("appointment booking", () => {
     assert.equal(await countAt(businessId, "2026-10-12T06:30:00.000Z"), 1);
 
     const call = await createCall(leadA);
-    const payload = toolPayload(call, "book_appointment", {
+    const payload = toolPayload(call, "createAppointment", {
       date: "2026-10-12",
       time: "12:30",
       appointmentType: "counselling",
@@ -532,13 +602,16 @@ describe("appointment booking", () => {
       handleAppointmentToolWebhook(payload, token, NOW),
       handleAppointmentToolWebhook(payload, token, NOW),
     ]);
+    const ids = new Set<unknown>();
     for (const delivery of deliveries) {
       assert.equal(delivery.status, 200);
       if (delivery.status === 200) {
-        const result = delivery.body.results[0];
-        assert.ok("result" in result && result.result.startsWith("BOOKED"));
+        const data = toolData(delivery.body.results[0]);
+        assert.equal(data.success, true);
+        ids.add(data.appointmentId);
       }
     }
+    assert.equal(ids.size, 1);
     assert.equal(await prisma.appointment.count({ where: { callId: call.id } }), 1);
   });
 
@@ -585,16 +658,33 @@ describe("appointment booking", () => {
     assert.ok(marked.ok && marked.appointment.status === "NO_SHOW");
   });
 
-  it("20. dashboard rows show Customer, Date, Time, Appointment Type and Status", async () => {
+  it("20. booked appointments appear in the dashboard list with the table columns", async () => {
     assert.deepEqual([...APPOINTMENT_TABLE_COLUMNS], ["Customer", "Date", "Time", "Appointment Type", "Status"]);
     assert.ok(firstBooking?.ok);
     if (!firstBooking?.ok) return;
-    const row = toAppointmentRow(firstBooking.appointment, "Asia/Kolkata");
+    const bookedId = firstBooking.appointment.id;
+
+    const listed = (await listAppointments(businessId)).find((a) => a.id === bookedId);
+    assert.ok(listed, "booked appointment is listed for its business");
+    const row = toAppointmentRow(listed, "Asia/Kolkata");
     assert.deepEqual(
       { customer: row.customer, date: row.date, time: row.time, type: row.type, status: row.status },
       { customer: "Rahul", date: "Oct 5, 2026", time: "12:00 PM", type: "Counselling", status: "Scheduled" },
     );
     assert.equal(statusLabel("NO_SHOW"), "No-show");
+
+    const safe = toSafeAppointment(listed, "Asia/Kolkata");
+    assert.deepEqual(safe, {
+      id: bookedId,
+      customerName: "Rahul",
+      date: "2026-10-05",
+      time: "12:00",
+      displayDate: "Oct 5, 2026",
+      displayTime: "12:00 PM",
+      appointmentType: "counselling",
+      status: "SCHEDULED",
+    });
+    assert.ok(!("slotKey" in safe) && !("businessId" in safe));
   });
 
   it("the Vapi call gets the appointment tools and rules (telephony mocked)", async () => {
@@ -636,7 +726,7 @@ describe("appointment booking", () => {
     const withTools = (sent[0].assistant as { model: Model }).model;
     assert.deepEqual(
       withTools.tools?.map((t) => t.function.name),
-      ["get_available_slots", "book_appointment"],
+      ["getAvailableSlots", "createAppointment"],
     );
     assert.equal(withTools.tools?.[0].server.url, "https://callai.example/api/webhooks/vapi/tools");
     assert.equal(withTools.tools?.[0].server.headers[TOOL_TOKEN_HEADER], appointmentToolToken("call-123"));
